@@ -179,3 +179,8 @@ func maxInt(a, b int) int {
 	}
 	return b
 }
+
+// errLine renders an indented red error line for use inside a card body.
+func errLine(t tui.Theme, err error) string {
+	return lipgloss.NewStyle().Foreground(t.Error).Render("  " + err.Error())
+}

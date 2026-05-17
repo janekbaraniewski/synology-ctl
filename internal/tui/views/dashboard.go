@@ -58,22 +58,7 @@ func (d *Dashboard) Bindings() []key.Binding {
 	return []key.Binding{key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh"))}
 }
 
-type utilMsg struct {
-	U   *dsm.Utilization
-	Err error
-}
-type storageMsg struct {
-	S   *dsm.Storage
-	Err error
-}
-type procsMsg struct {
-	P   []dsm.Process
-	Err error
-}
-type recentLogsMsg struct {
-	L   []dsm.LogEntry
-	Err error
-}
+// (utilMsg / storageMsg / procsMsg / recentLogsMsg now live in messages.go)
 
 func (d *Dashboard) Init() tea.Cmd {
 	return tea.Batch(d.fetchUtil(), d.fetchStorage(), d.fetchProcs(), d.fetchRecentLogs())
