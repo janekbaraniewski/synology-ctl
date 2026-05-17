@@ -42,7 +42,8 @@ type Group struct {
 	Description string `json:"description"`
 }
 
-// Groups returns all local groups.
+// Groups returns all local groups. DSM 7 exposes this under
+// SYNO.Core.User.Group (not SYNO.Core.Group, which doesn't exist).
 func (c *Client) Groups(ctx context.Context) ([]Group, error) {
 	params := url.Values{}
 	params.Set("type", "local")
@@ -54,7 +55,7 @@ func (c *Client) Groups(ctx context.Context) ([]Group, error) {
 		Offset int     `json:"offset"`
 		Total  int     `json:"total"`
 	}
-	if err := c.Call(ctx, "SYNO.Core.Group", 1, "list", params, &resp); err != nil {
+	if err := c.Call(ctx, "SYNO.Core.User.Group", 1, "list", params, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Groups, nil

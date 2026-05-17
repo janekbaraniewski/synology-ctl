@@ -14,10 +14,10 @@ import (
 
 // Network shows interface state, addressing and link speed.
 type Network struct {
-	ctx    Ctx
-	ifs    []dsm.NetworkInterface
-	err    error
-	cursor int
+	listBase
+	ctx Ctx
+	ifs []dsm.NetworkInterface
+	err error
 }
 
 type netMsg struct {
@@ -25,43 +25,62 @@ type netMsg struct {
 	Err error
 }
 
-func NewNetwork(c Ctx) tui.View { return &Network{ctx: c} }
+func NewNetwork(c Ctx) tui.View {
+	n := &Network{ctx: c}
+	n.initBase(c)
+	return n
+}
 
 func (n *Network) Name() string                   { return "network" }
 func (n *Network) Title() string                  { return "Network" }
 func (n *Network) Icon() string                   { return "⇄" }
 func (n *Network) RefreshInterval() time.Duration { return 30 * time.Second }
-func (n *Network) Bindings() []key.Binding        { return nil }
-
-func (n *Network) Init() tea.Cmd { return n.fetch() }
+func (n *Network) Bindings() []key.Binding        { return BaseBindings() }
+func (n *Network) Init() tea.Cmd                  { return n.fetch() }
 
 func (n *Network) fetch() tea.Cmd {
 	c := n.ctx.Client
+	if c == nil {
+		return nil
+	}
 	return tui.Fetch(8*time.Second,
 		func(ctx context.Context) ([]dsm.NetworkInterface, error) { return c.NetworkInterfaces(ctx) },
 		func(v []dsm.NetworkInterface, err error) tea.Msg { return netMsg{I: v, Err: err} },
 	)
 }
 
+func (n *Network) visible() []dsm.NetworkInterface {
+	if n.FilterValue() == "" {
+		return n.ifs
+	}
+	out := make([]dsm.NetworkInterface, 0)
+	for _, ni := range n.ifs {
+		if n.FilterMatch(ni.IFName, ni.Type, ni.IP, ni.Gateway, ni.MAC, ni.Status) {
+			out = append(out, ni)
+		}
+	}
+	return out
+}
+
 func (n *Network) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	rows := n.visible()
+	if cmd, handled := n.HandleKey(msg, len(rows)); handled {
+		return n, cmd
+	}
+	if n.IsEnter(msg) && len(rows) > 0 {
+		n.ShowDetail("Interface "+rows[n.Cursor()].IFName, rows[n.Cursor()])
+		return n, nil
+	}
 	switch m := msg.(type) {
 	case tui.TickMsg:
 		return n, n.fetch()
 	case netMsg:
 		n.ifs, n.err = m.I, m.Err
+		n.ClampCursor(len(n.visible()))
 		return n, nil
 	case tea.KeyMsg:
-		switch m.String() {
-		case "r":
+		if m.String() == "r" {
 			return n, n.fetch()
-		case "j", "down":
-			if n.cursor < len(n.ifs)-1 {
-				n.cursor++
-			}
-		case "k", "up":
-			if n.cursor > 0 {
-				n.cursor--
-			}
 		}
 	}
 	return n, nil
@@ -69,6 +88,9 @@ func (n *Network) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (n *Network) Render(width, height int) string {
 	t := n.ctx.Theme
+	if n.DetailVisible() {
+		return n.RenderDetail(width, height)
+	}
 	if n.ifs == nil && n.err == nil {
 		return Card(t, width, " ⇄  Network ", "\n  Loading…\n", true)
 	}
@@ -76,30 +98,39 @@ func (n *Network) Render(width, height int) string {
 		return Card(t, width, " ⇄  Network ", "\n"+errLine(t, n.err)+"\n", true)
 	}
 	cols := []Column{
-		{Header: "INTERFACE", Width: 14},
-		{Header: "MAC", Width: 19},
-		{Header: "IPv4", Width: 18},
+		{Header: "INTERFACE", Width: 12},
+		{Header: "TYPE", Width: 10},
+		{Header: "IPv4", Width: 22},
 		{Header: "GATEWAY", Width: 16},
-		{Header: "SPEED", Width: 12},
-		{Header: "MTU", Width: 6, Align: lipgloss.Right},
+		{Header: "SPEED", Width: 14, Align: lipgloss.Right},
 		{Header: "STATUS", Width: 0, Align: lipgloss.Right},
 	}
-	rows := make([][]Cell, 0, len(n.ifs))
-	for _, ni := range n.ifs {
-		ip := ni.IPv4Address
-		if ip != "" && ni.IPv4Mask != "" {
-			ip += "/" + ni.IPv4Mask
+	rows := make([][]Cell, 0)
+	for _, ni := range n.visible() {
+		ip := ni.IP
+		if ip != "" && ni.Mask != "" {
+			ip += "/" + ni.Mask
+		}
+		speed := "—"
+		if ni.Speed > 0 {
+			speed = itoaInt(ni.Speed) + " Mbit/s"
 		}
 		rows = append(rows, []Cell{
 			Plain(ni.IFName),
-			Plain(ni.MAC),
+			Plain(ni.Type),
 			Plain(ip),
-			Plain(ni.IPv4Gateway),
-			Plain(ni.LinkSpeed),
-			Plain(itoaInt(ni.MTU)),
-			Styled(" "+ni.Status+" ", t.HealthStyle(ni.Status)),
+			Plain(ni.Gateway),
+			Plain(speed),
+			Styled(ni.Status, t.HealthStyle(ni.Status)),
 		})
 	}
-	body := "\n" + Table(t, width-4, height-4, cols, rows, n.cursor) + "\n"
-	return Card(t, width, " ⇄  Network ", body, true)
+	footerH := 1
+	if f := n.FilterFooter(t); f != "" {
+		footerH = 2
+	}
+	body := "\n" + Table(t, width-4, height-3-footerH, cols, rows, n.Cursor()) + "\n"
+	if f := n.FilterFooter(t); f != "" {
+		body += f + "\n"
+	}
+	return Card(t, width, " ⇄  Network — ⏎ details · / filter ", body, true)
 }

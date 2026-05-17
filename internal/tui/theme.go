@@ -127,18 +127,19 @@ func (t Theme) Selected() lipgloss.Style {
 		Bold(true)
 }
 
-// HealthStyle returns a chip style for a normalized health string.
-// Inputs: "normal", "ok", "running" → success; "warn", "degrade" → warn;
-// "crashed", "error", "stop" → error; anything else → muted.
+// HealthStyle returns a foreground-coloured style for a normalized health
+// string. We intentionally avoid backgrounds here — those look like ugly
+// horizontal blocks when used inside tables. The brand "chip" treatment
+// is reserved for the top/bottom chrome where rows aren't fighting it.
 func (t Theme) HealthStyle(s string) lipgloss.Style {
 	switch s {
 	case "normal", "ok", "running", "connected", "healthy":
-		return t.Chip(t.Success)
-	case "warn", "warning", "degrade", "rebuilding":
-		return t.Chip(t.Warn)
-	case "crashed", "error", "stop", "stopped", "disconnected", "broken":
-		return t.Chip(t.Error)
+		return lipgloss.NewStyle().Foreground(t.Success).Bold(true)
+	case "warn", "warning", "warn ", "degrade", "rebuilding":
+		return lipgloss.NewStyle().Foreground(t.Warn).Bold(true)
+	case "crashed", "error", "err", "stop", "stopped", "disconnected", "broken":
+		return lipgloss.NewStyle().Foreground(t.Error).Bold(true)
 	default:
-		return t.SubtleChip()
+		return lipgloss.NewStyle().Foreground(t.Muted)
 	}
 }

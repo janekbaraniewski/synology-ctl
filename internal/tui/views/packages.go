@@ -14,11 +14,11 @@ import (
 
 // Packages lists installed DSM packages with start/stop actions.
 type Packages struct {
+	listBase
 	ctx     Ctx
 	pkgs    []dsm.Package
 	err     error
-	cursor  int
-	pending map[string]string // id → action in flight (for the UI hint)
+	pending map[string]string // id → action in flight
 	flash   string
 }
 
@@ -32,7 +32,9 @@ type pkgActionMsg struct {
 }
 
 func NewPackages(c Ctx) tui.View {
-	return &Packages{ctx: c, pending: map[string]string{}}
+	p := &Packages{ctx: c, pending: map[string]string{}}
+	p.initBase(c)
+	return p
 }
 
 func (p *Packages) Name() string                   { return "packages" }
@@ -40,17 +42,19 @@ func (p *Packages) Title() string                  { return "Packages" }
 func (p *Packages) Icon() string                   { return "▣" }
 func (p *Packages) RefreshInterval() time.Duration { return 20 * time.Second }
 func (p *Packages) Bindings() []key.Binding {
-	return []key.Binding{
+	return append(BaseBindings(),
 		key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
 		key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart")),
-	}
+	)
 }
-
 func (p *Packages) Init() tea.Cmd { return p.fetch() }
 
 func (p *Packages) fetch() tea.Cmd {
 	c := p.ctx.Client
+	if c == nil {
+		return nil
+	}
 	return tui.Fetch(8*time.Second,
 		func(ctx context.Context) ([]dsm.Package, error) { return c.Packages(ctx) },
 		func(v []dsm.Package, err error) tea.Msg { return packagesMsg{P: v, Err: err} },
@@ -66,12 +70,34 @@ func (p *Packages) act(id, action string) tea.Cmd {
 	)
 }
 
+func (p *Packages) visible() []dsm.Package {
+	if p.FilterValue() == "" {
+		return p.pkgs
+	}
+	out := make([]dsm.Package, 0)
+	for _, pk := range p.pkgs {
+		if p.FilterMatch(pk.ID, pk.Name, pk.Maintainer, pk.Status, pk.Version) {
+			out = append(out, pk)
+		}
+	}
+	return out
+}
+
 func (p *Packages) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	rows := p.visible()
+	if cmd, handled := p.HandleKey(msg, len(rows)); handled {
+		return p, cmd
+	}
+	if p.IsEnter(msg) && len(rows) > 0 {
+		p.ShowDetail("Package "+rows[p.Cursor()].Name, rows[p.Cursor()])
+		return p, nil
+	}
 	switch m := msg.(type) {
 	case tui.TickMsg:
 		return p, p.fetch()
 	case packagesMsg:
 		p.pkgs, p.err = m.P, m.Err
+		p.ClampCursor(len(p.visible()))
 		return p, nil
 	case pkgActionMsg:
 		delete(p.pending, m.ID)
@@ -85,14 +111,6 @@ func (p *Packages) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 		switch m.String() {
 		case "r":
 			return p, p.fetch()
-		case "j", "down":
-			if p.cursor < len(p.pkgs)-1 {
-				p.cursor++
-			}
-		case "k", "up":
-			if p.cursor > 0 {
-				p.cursor--
-			}
 		case "s":
 			if id := p.selectedID(); id != "" {
 				return p, p.act(id, "start")
@@ -111,14 +129,18 @@ func (p *Packages) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 }
 
 func (p *Packages) selectedID() string {
-	if p.cursor < 0 || p.cursor >= len(p.pkgs) {
+	rows := p.visible()
+	if p.Cursor() < 0 || p.Cursor() >= len(rows) {
 		return ""
 	}
-	return p.pkgs[p.cursor].ID
+	return rows[p.Cursor()].ID
 }
 
 func (p *Packages) Render(width, height int) string {
 	t := p.ctx.Theme
+	if p.DetailVisible() {
+		return p.RenderDetail(width, height)
+	}
 	if p.pkgs == nil && p.err == nil {
 		return Card(t, width, " ▣  Packages ", "\n  Loading…\n", true)
 	}
@@ -127,12 +149,12 @@ func (p *Packages) Render(width, height int) string {
 	}
 	cols := []Column{
 		{Header: "NAME", Width: 28},
-		{Header: "VERSION", Width: 16},
+		{Header: "VERSION", Width: 18},
 		{Header: "MAINTAINER", Width: 0},
-		{Header: "STATUS", Width: 12, Align: lipgloss.Right},
+		{Header: "STATUS", Width: 14, Align: lipgloss.Right},
 	}
-	rows := make([][]Cell, 0, len(p.pkgs))
-	for _, pk := range p.pkgs {
+	rows := make([][]Cell, 0)
+	for _, pk := range p.visible() {
 		status := pk.Status
 		if act, ok := p.pending[pk.ID]; ok {
 			status = act + "…"
@@ -141,13 +163,19 @@ func (p *Packages) Render(width, height int) string {
 			Plain(pk.Name),
 			Plain(pk.Version),
 			Plain(pk.Maintainer),
-			Styled(" "+status+" ", t.HealthStyle(status)),
+			Styled(status, t.HealthStyle(status)),
 		})
 	}
-	body := "\n" + Table(t, width-4, height-5, cols, rows, p.cursor) + "\n"
+	footerH := 2
+	if f := p.FilterFooter(t); f != "" {
+		footerH = 3
+	}
+	body := "\n" + Table(t, width-4, height-3-footerH, cols, rows, p.Cursor()) + "\n"
 	if p.flash != "" {
 		body += lipgloss.NewStyle().Foreground(t.Muted).Render("  "+p.flash) + "\n"
 	}
-	title := " ▣  Packages — [s]tart [x]stop [R]estart "
-	return Card(t, width, title, body, true)
+	if f := p.FilterFooter(t); f != "" {
+		body += f + "\n"
+	}
+	return Card(t, width, " ▣  Packages — ⏎ details · / filter · [s]tart [x]stop [R]estart ", body, true)
 }

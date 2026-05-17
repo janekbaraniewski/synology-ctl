@@ -113,22 +113,29 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tea.Batch(a.fetchSysInfo(), tea.Tick(30*time.Second, func(t time.Time) tea.Msg { return sysInfoTick{} }))
 
 	case sysInfoMsg:
+		// We intentionally swallow errors here — the top bar info is a
+		// nice-to-have and surfacing the error every 30 seconds drowns
+		// out interactive feedback (palette misses, action failures).
 		if m.Err == nil {
 			a.sysInfo = m.Info
-		} else {
-			a.flashErr(m.Err)
+		} else if a.logger != nil {
+			a.logger.Debug("sysinfo fetch failed", "err", m.Err)
 		}
 		return a, nil
 
 	case TickMsg:
 		// Forward to the named view (which is usually the active one).
+		// A tick from a non-active view must still find its own slot — we
+		// can't blindly write into a.views[a.active] or we corrupt the
+		// tab bar.
 		v, ok := a.byName[m.View]
 		if !ok {
 			return a, nil
 		}
 		nv, cmd := v.Update(m)
-		a.replaceView(nv)
-		// Re-schedule if this is the active view.
+		a.replaceViewByName(nv)
+		// Re-schedule only for the active view; off-screen ticks pause
+		// to avoid burning network and CPU on hidden tabs.
 		var resched tea.Cmd
 		if a.views[a.active].Name() == m.View {
 			resched = scheduleTick(m.View, nv.RefreshInterval())
@@ -175,9 +182,25 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
+// replaceView writes a fresh view into the active slot. Use this when you
+// know the message was destined for the currently-active tab.
 func (a *App) replaceView(v View) {
 	a.views[a.active] = v
 	a.byName[v.Name()] = v
+}
+
+// replaceViewByName finds the slot that holds the view with the same name
+// and overwrites it. Use this for ticks/async messages that could be
+// destined for a non-active view.
+func (a *App) replaceViewByName(v View) {
+	name := v.Name()
+	for i, existing := range a.views {
+		if existing.Name() == name {
+			a.views[i] = v
+			break
+		}
+	}
+	a.byName[name] = v
 }
 
 func (a *App) cycle(delta int) {
@@ -266,7 +289,7 @@ func (a *App) View() string {
 		bodyHeight = 1
 	}
 
-	body := a.views[a.active].Render(a.width, bodyHeight)
+	body := fitToHeight(a.views[a.active].Render(a.width, bodyHeight), bodyHeight)
 
 	if a.helpOpen {
 		return a.renderHelpOverlay()
@@ -280,6 +303,23 @@ func (a *App) View() string {
 	return strings.Join(parts, "\n")
 }
 
+// fitToHeight pads with blank lines or truncates so the rendered body is
+// exactly `n` lines tall. This is what keeps the bottom hint bar pinned to
+// the actual terminal bottom regardless of how much content a view emits.
+func fitToHeight(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > n {
+		return strings.Join(lines[:n], "\n")
+	}
+	if len(lines) < n {
+		return s + strings.Repeat("\n", n-len(lines))
+	}
+	return s
+}
+
 func (a *App) renderTopBar() string {
 	t := a.theme
 	host := "(no connection)"
@@ -289,10 +329,18 @@ func (a *App) renderTopBar() string {
 		host = a.client.Host()
 	}
 	if a.sysInfo != nil {
-		if a.sysInfo.DSMVersion != "" {
-			dsmVer = "DSM " + a.sysInfo.DSMVersion
-		} else if a.sysInfo.Version != "" {
-			dsmVer = "DSM " + a.sysInfo.Version
+		raw := a.sysInfo.DSMVersion
+		if raw == "" {
+			raw = a.sysInfo.Version
+		}
+		// Some DSM builds prefix the firmware_ver with "DSM " already
+		// ("DSM 7.0.1-42218 Update 7"); don't double-stamp it.
+		if raw != "" {
+			if strings.HasPrefix(strings.ToUpper(raw), "DSM") {
+				dsmVer = raw
+			} else {
+				dsmVer = "DSM " + raw
+			}
 		}
 		if a.sysInfo.UptimeSeconds != "" {
 			uptime = "up " + humanizeUptime(a.sysInfo.UptimeSeconds)
@@ -351,31 +399,46 @@ func (a *App) renderTabs() string {
 func (a *App) renderHintBar() string {
 	t := a.theme
 	if a.lastErr != nil && time.Now().Before(a.errExpire) {
+		msg := " ⚠ " + a.lastErr.Error()
+		if lipgloss.Width(msg) > a.width {
+			r := []rune(msg)
+			if len(r) > a.width-1 {
+				msg = string(r[:a.width-1]) + "…"
+			}
+		}
 		return lipgloss.NewStyle().
 			Background(t.BgAlt).
 			Foreground(t.Error).
 			Width(a.width).
-			Render(" ⚠ " + a.lastErr.Error())
+			Render(msg)
 	}
 
-	chip := func(k, label string) string {
-		return t.Chip(t.Accent2).Render(k) + lipgloss.NewStyle().Foreground(t.Muted).Render(" "+label+"  ")
+	// Build chips and drop trailing ones that wouldn't fit. Setting
+	// Width(a.width) on a row wider than the terminal causes lipgloss to
+	// wrap onto a second line — which is what produced the off-screen
+	// "..,/ry" bleed in the earlier screenshot.
+	type chipDef struct{ k, label string }
+	defs := []chipDef{
+		{"⇥", "view"}, {":", "cmd"}, {"/", "filter"},
+		{"r", "refresh"}, {"a", "actions"}, {"?", "help"}, {"q", "quit"},
 	}
-	hints := []string{
-		chip("⇥", "view"),
-		chip(":", "command"),
-		chip("/", "filter"),
-		chip("r", "refresh"),
-		chip("a", "actions"),
-		chip("?", "help"),
-		chip("q", "quit"),
+	muted := lipgloss.NewStyle().Foreground(t.Muted)
+	render := func(c chipDef) string {
+		return t.Chip(t.Accent2).Render(c.k) + muted.Render(" "+c.label+"  ")
 	}
-	row := " " + strings.Join(hints, "")
+	row := " "
+	for _, c := range defs {
+		next := row + render(c)
+		if lipgloss.Width(next) >= a.width-1 {
+			break
+		}
+		row = next
+	}
 	pad := a.width - lipgloss.Width(row)
 	if pad > 0 {
 		row += lipgloss.NewStyle().Background(t.BgAlt).Render(strings.Repeat(" ", pad))
 	}
-	return lipgloss.NewStyle().Background(t.BgAlt).Width(a.width).Render(row)
+	return lipgloss.NewStyle().Background(t.BgAlt).Render(row)
 }
 
 func (a *App) renderPalette() string {

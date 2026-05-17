@@ -45,7 +45,11 @@ func Table(theme tui.Theme, width, height int, cols []Column, rows [][]Cell, sel
 	b.WriteString(lipgloss.NewStyle().Foreground(theme.Border).Render(strings.Repeat("─", width)))
 	b.WriteByte('\n')
 
-	// Body
+	// Body. We deliberately avoid zebra striping: when the table contains
+	// per-cell chip styles (status, level …) the alternating-row
+	// background fights the chip background and ends up looking like
+	// ugly horizontal bars. A single calm foreground for unselected rows
+	// plus a strong highlight on the selected row reads much cleaner.
 	maxRows := height - 3
 	if maxRows < 1 {
 		maxRows = 1
@@ -60,9 +64,6 @@ func Table(theme tui.Theme, width, height int, cols []Column, rows [][]Cell, sel
 	}
 	for i := visibleStart; i < end; i++ {
 		style := theme.Row()
-		if i%2 == 1 {
-			style = theme.RowAlt()
-		}
 		if i == selected {
 			style = theme.Selected()
 		}

@@ -270,7 +270,7 @@ func (d *Dashboard) renderVolumes(width int) string {
 		if total > 0 {
 			ratio = float64(used) / float64(total)
 		}
-		name := v.DisplayName
+		name := v.VolPath
 		if name == "" {
 			name = v.ID
 		}

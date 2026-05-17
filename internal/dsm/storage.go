@@ -2,100 +2,105 @@ package dsm
 
 import (
 	"context"
-	"net/url"
+	"encoding/json"
 )
 
-// Storage is the aggregate response from SYNO.Core.Storage.
+// Storage is the aggregate response from SYNO.Storage.CGI.Storage.load_info.
+// That endpoint returns volumes/pools/disks/ports/env in a single payload,
+// and it's the one DSM 7 actually keeps alive on legacy boxes like the
+// DS220j (the newer SYNO.Core.Storage.* endpoints rejected our params
+// with code 101 on this firmware).
 type Storage struct {
 	Volumes      []Volume      `json:"volumes"`
 	StoragePools []StoragePool `json:"storagePools"`
 	Disks        []Disk        `json:"disks"`
-	HotSpares    []any         `json:"hotSpares,omitempty"`
-	SSDCaches    []any         `json:"ssdCaches,omitempty"`
-	Env          struct {
-		Batchtask struct {
-			RemainingTasks int `json:"remaining_tasks"`
-		} `json:"batchtask"`
-		ShareCryptoSupport bool `json:"share_crypto_support"`
-		BTRFSReplicaSupport bool `json:"support_btrfs_replica"`
-		ISCSILunSupport    bool `json:"support_iscsi_lun"`
-	} `json:"env,omitempty"`
+	// Raw captures the full payload so the detail view can pretty-print
+	// any field we haven't modelled explicitly.
+	Raw json.RawMessage `json:"-"`
 }
 
 // Volume is a logical filesystem mounted on a pool.
+//
+// Field names match the legacy CGI shape: `raidType` is camelCase here
+// (not snake_case), and the canonical id is `volume_1`/`volume_2`/… —
+// the user-visible "/volume1" path lives under VolPath.
 type Volume struct {
-	ID            string `json:"id"`            // e.g. "/volume1"
-	Container     string `json:"container"`     // "pool"
-	DeviceType    string `json:"device_type"`   // "shr_without_disk_protect", "raid5", …
-	DisplayName   string `json:"display_name"`
-	FSType        string `json:"fs_type"`       // "btrfs", "ext4"
-	NumID         int    `json:"num_id"`
-	PoolPath      string `json:"pool_path,omitempty"`
-	RaidType      string `json:"raid_type,omitempty"`
-	Size          struct {
+	ID           string `json:"id"`           // "volume_1"
+	VolPath      string `json:"vol_path"`     // "/volume1"
+	Container    string `json:"container"`    // "internal"
+	DeviceType   string `json:"device_type"`  // "shr_with_1_disk_protect", "raid5", …
+	Desc         string `json:"desc"`         // "SHR" / "Basic" / …
+	FSType       string `json:"fs_type"`      // "btrfs", "ext4"
+	NumID        int    `json:"num_id"`
+	PoolPath     string `json:"pool_path,omitempty"`
+	RaidType     string `json:"raidType,omitempty"` // "single", "shr1", "raid5"
+	SpacePath    string `json:"space_path,omitempty"`
+	IsWritable   bool   `json:"is_writable,omitempty"`
+	Size         struct {
 		FreeInode  string `json:"free_inode"`
 		TotalInode string `json:"total_inode"`
-		Total      string `json:"total"`
-		Used       string `json:"used"`
+		Total      string `json:"total"` // bytes, as string
+		Used       string `json:"used"`  // bytes, as string
 	} `json:"size"`
-	Status       string `json:"status"`     // "normal", "degrade", "crashed"
-	Progress     int    `json:"progress,omitempty"`
-	SpacePath    string `json:"space_path,omitempty"`
+	Status        string `json:"status"`         // "normal", "attention", "crashed"
+	SummaryStatus string `json:"summary_status"` // sometimes more specific
 }
 
 // StoragePool groups physical disks into a redundancy group.
 type StoragePool struct {
 	ID         string   `json:"id"`
 	DeviceType string   `json:"device_type"`
-	RaidType   string   `json:"raid_type,omitempty"`
+	RaidType   string   `json:"raidType,omitempty"`
 	NumID      int      `json:"num_id"`
 	Disks      []string `json:"disks,omitempty"`
-	Pool struct {
+	Pool       struct {
 		Status string `json:"status"`
 	} `json:"pool"`
 	Size struct {
 		Total string `json:"total"`
 		Used  string `json:"used"`
 	} `json:"size"`
-	Progress int    `json:"progress,omitempty"`
-	Status   string `json:"status"`
+	Progress      json.RawMessage `json:"progress,omitempty"`
+	Status        string          `json:"status"`
+	SummaryStatus string          `json:"summary_status"`
 }
 
 // Disk is a physical drive.
 type Disk struct {
-	ID          string `json:"id"`           // disk_unc id, e.g. /dev/sda
+	ID          string `json:"id"`
 	Path        string `json:"path,omitempty"`
 	Device      string `json:"device,omitempty"`
-	DiskType    string `json:"diskType"`     // "SATA", "SAS", "M2_NVMe" …
+	DiskType    string `json:"diskType"`
 	Model       string `json:"model"`
 	Vendor      string `json:"vendor"`
 	Firmware    string `json:"firm,omitempty"`
-	Status      string `json:"status"`       // "normal", "warning", "critical"
-	Temperature int    `json:"temp"`         // celsius
-	Capacity    string `json:"capacity"`     // bytes as string
+	Status      string `json:"status"`
+	Temperature int    `json:"temp"`
+	Capacity    string `json:"capacity"` // bytes, as string
 	Used        string `json:"used,omitempty"`
 	Container   struct {
 		Order int    `json:"order"`
-		Type  string `json:"type"` // "internal", "ebox", "usb"
+		Type  string `json:"type"`
 		Str   string `json:"str,omitempty"`
 	} `json:"container"`
 	Smart struct {
 		Status string `json:"status,omitempty"`
 	} `json:"smart,omitempty"`
-	Used4K       bool   `json:"is_4kn_disk,omitempty"`
-	Unused       bool   `json:"unused,omitempty"`
-	BadSectors   int    `json:"bad_sector,omitempty"`
-	NumID        int    `json:"num_id,omitempty"`
-	Serial       string `json:"serial,omitempty"`
+	NumID  int    `json:"num_id,omitempty"`
+	Serial string `json:"serial,omitempty"`
 }
 
-// Storage returns volumes/pools/disks in a single call.
+// Storage fetches volumes/pools/disks in one call via the legacy CGI path
+// that DSM 7 still keeps wired up.
 func (c *Client) Storage(ctx context.Context) (*Storage, error) {
-	var out Storage
-	params := url.Values{}
-	params.Set("action", "load_info")
-	if err := c.Call(ctx, "SYNO.Core.Storage", 1, "load_info", params, &out); err != nil {
+	var raw json.RawMessage
+	if err := c.Call(ctx, "SYNO.Storage.CGI.Storage", 1, "load_info", nil, &raw); err != nil {
 		return nil, err
 	}
+	var out Storage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, err
+	}
+	out.Raw = raw
 	return &out, nil
 }

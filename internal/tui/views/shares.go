@@ -14,10 +14,10 @@ import (
 
 // Shares is the shared-folders view.
 type Shares struct {
+	listBase
 	ctx    Ctx
 	shares []dsm.Share
 	err    error
-	cursor int
 }
 
 type sharesMsg struct {
@@ -25,15 +25,18 @@ type sharesMsg struct {
 	Err error
 }
 
-func NewShares(c Ctx) tui.View { return &Shares{ctx: c} }
+func NewShares(c Ctx) tui.View {
+	s := &Shares{ctx: c}
+	s.initBase(c)
+	return s
+}
 
 func (s *Shares) Name() string                   { return "shares" }
 func (s *Shares) Title() string                  { return "Shares" }
 func (s *Shares) Icon() string                   { return "▦" }
 func (s *Shares) RefreshInterval() time.Duration { return 30 * time.Second }
-func (s *Shares) Bindings() []key.Binding        { return nil }
-
-func (s *Shares) Init() tea.Cmd { return s.fetch() }
+func (s *Shares) Bindings() []key.Binding        { return BaseBindings() }
+func (s *Shares) Init() tea.Cmd                  { return s.fetch() }
 
 func (s *Shares) fetch() tea.Cmd {
 	c := s.ctx.Client
@@ -46,29 +49,38 @@ func (s *Shares) fetch() tea.Cmd {
 	)
 }
 
+func (s *Shares) visible() []dsm.Share {
+	if s.FilterValue() == "" {
+		return s.shares
+	}
+	out := make([]dsm.Share, 0, len(s.shares))
+	for _, sh := range s.shares {
+		if s.FilterMatch(sh.Name, sh.Path, sh.Desc) {
+			out = append(out, sh)
+		}
+	}
+	return out
+}
+
 func (s *Shares) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	rows := s.visible()
+	if cmd, handled := s.HandleKey(msg, len(rows)); handled {
+		return s, cmd
+	}
+	if s.IsEnter(msg) && len(rows) > 0 {
+		s.ShowDetail("Share "+rows[s.Cursor()].Name, rows[s.Cursor()])
+		return s, nil
+	}
 	switch m := msg.(type) {
 	case tui.TickMsg:
 		return s, s.fetch()
 	case sharesMsg:
 		s.shares, s.err = m.S, m.Err
+		s.ClampCursor(len(s.visible()))
 		return s, nil
 	case tea.KeyMsg:
-		switch m.String() {
-		case "r":
+		if m.String() == "r" {
 			return s, s.fetch()
-		case "j", "down":
-			if s.cursor < len(s.shares)-1 {
-				s.cursor++
-			}
-		case "k", "up":
-			if s.cursor > 0 {
-				s.cursor--
-			}
-		case "g":
-			s.cursor = 0
-		case "G":
-			s.cursor = len(s.shares) - 1
 		}
 	}
 	return s, nil
@@ -76,6 +88,9 @@ func (s *Shares) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (s *Shares) Render(width, height int) string {
 	t := s.ctx.Theme
+	if s.DetailVisible() {
+		return s.RenderDetail(width, height)
+	}
 	if s.shares == nil && s.err == nil {
 		return Card(t, width, " ▦  Shares ", "\n  Loading…\n", true)
 	}
@@ -83,14 +98,15 @@ func (s *Shares) Render(width, height int) string {
 		return Card(t, width, " ▦  Shares ", "\n"+errLine(t, s.err)+"\n", true)
 	}
 	cols := []Column{
-		{Header: "NAME", Width: 20},
+		{Header: "NAME", Width: 22},
 		{Header: "PATH", Width: 0},
+		{Header: "ENC", Width: 6, Align: lipgloss.Center},
 		{Header: "RECYCLE", Width: 9, Align: lipgloss.Center},
 		{Header: "HIDDEN", Width: 8, Align: lipgloss.Center},
-		{Header: "QUOTA USED", Width: 14, Align: lipgloss.Right},
+		{Header: "QUOTA", Width: 16, Align: lipgloss.Right},
 	}
-	rows := make([][]Cell, 0, len(s.shares))
-	for _, sh := range s.shares {
+	rows := make([][]Cell, 0)
+	for _, sh := range s.visible() {
 		quota := "—"
 		if sh.ShareQuota > 0 {
 			quota = HumanBytes(uint64(sh.ShareQuotaUsed)*1024*1024) + " / " + HumanBytes(uint64(sh.ShareQuota)*1024*1024)
@@ -103,14 +119,26 @@ func (s *Shares) Render(width, height int) string {
 		if sh.Hidden {
 			hidden = "yes"
 		}
+		enc := "—"
+		if sh.IsEncrypted() {
+			enc = "yes"
+		}
 		rows = append(rows, []Cell{
 			Plain(sh.Name),
 			Plain(sh.Path),
+			Plain(enc),
 			Plain(recycle),
 			Plain(hidden),
 			Plain(quota),
 		})
 	}
-	body := "\n" + Table(t, width-4, height-4, cols, rows, s.cursor) + "\n"
-	return Card(t, width, " ▦  Shares ", body, true)
+	footerH := 1
+	if f := s.FilterFooter(t); f != "" {
+		footerH = 2
+	}
+	body := "\n" + Table(t, width-4, height-3-footerH, cols, rows, s.Cursor()) + "\n"
+	if f := s.FilterFooter(t); f != "" {
+		body += f + "\n"
+	}
+	return Card(t, width, " ▦  Shares — ⏎ details · / filter ", body, true)
 }

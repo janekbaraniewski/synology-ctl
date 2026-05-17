@@ -46,3 +46,22 @@ func (c *Client) Supports(api string) bool {
 	c.mu.RUnlock()
 	return ok
 }
+
+// APIDescriptor is the public shape of an entry in the SYNO.API.Info table.
+type APIDescriptor struct {
+	Path       string
+	MinVersion int
+	MaxVersion int
+}
+
+// APIInfo returns the descriptor for an API; ok is false if the device
+// doesn't advertise it (or Info() hasn't been called yet).
+func (c *Client) APIInfo(api string) (APIDescriptor, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	a, ok := c.apiPaths[api]
+	if !ok {
+		return APIDescriptor{}, false
+	}
+	return APIDescriptor{Path: a.Path, MinVersion: a.MinVersion, MaxVersion: a.MaxVersion}, true
+}

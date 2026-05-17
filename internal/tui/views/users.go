@@ -14,10 +14,10 @@ import (
 
 // Users lists local DSM accounts.
 type Users struct {
-	ctx    Ctx
-	users  []dsm.User
-	err    error
-	cursor int
+	listBase
+	ctx   Ctx
+	users []dsm.User
+	err   error
 }
 
 type usersMsg struct {
@@ -25,43 +25,62 @@ type usersMsg struct {
 	Err error
 }
 
-func NewUsers(c Ctx) tui.View { return &Users{ctx: c} }
+func NewUsers(c Ctx) tui.View {
+	u := &Users{ctx: c}
+	u.initBase(c)
+	return u
+}
 
 func (u *Users) Name() string                   { return "users" }
 func (u *Users) Title() string                  { return "Users" }
 func (u *Users) Icon() string                   { return "◐" }
 func (u *Users) RefreshInterval() time.Duration { return 60 * time.Second }
-func (u *Users) Bindings() []key.Binding        { return nil }
-
-func (u *Users) Init() tea.Cmd { return u.fetch() }
+func (u *Users) Bindings() []key.Binding        { return BaseBindings() }
+func (u *Users) Init() tea.Cmd                  { return u.fetch() }
 
 func (u *Users) fetch() tea.Cmd {
 	c := u.ctx.Client
+	if c == nil {
+		return nil
+	}
 	return tui.Fetch(8*time.Second,
 		func(ctx context.Context) ([]dsm.User, error) { return c.Users(ctx) },
 		func(v []dsm.User, err error) tea.Msg { return usersMsg{U: v, Err: err} },
 	)
 }
 
+func (u *Users) visible() []dsm.User {
+	if u.FilterValue() == "" {
+		return u.users
+	}
+	out := make([]dsm.User, 0)
+	for _, x := range u.users {
+		if u.FilterMatch(x.Name, x.Description, x.Email) {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
 func (u *Users) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	rows := u.visible()
+	if cmd, handled := u.HandleKey(msg, len(rows)); handled {
+		return u, cmd
+	}
+	if u.IsEnter(msg) && len(rows) > 0 {
+		u.ShowDetail("User "+rows[u.Cursor()].Name, rows[u.Cursor()])
+		return u, nil
+	}
 	switch m := msg.(type) {
 	case tui.TickMsg:
 		return u, u.fetch()
 	case usersMsg:
 		u.users, u.err = m.U, m.Err
+		u.ClampCursor(len(u.visible()))
 		return u, nil
 	case tea.KeyMsg:
-		switch m.String() {
-		case "r":
+		if m.String() == "r" {
 			return u, u.fetch()
-		case "j", "down":
-			if u.cursor < len(u.users)-1 {
-				u.cursor++
-			}
-		case "k", "up":
-			if u.cursor > 0 {
-				u.cursor--
-			}
 		}
 	}
 	return u, nil
@@ -69,6 +88,9 @@ func (u *Users) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (u *Users) Render(width, height int) string {
 	t := u.ctx.Theme
+	if u.DetailVisible() {
+		return u.RenderDetail(width, height)
+	}
 	if u.users == nil && u.err == nil {
 		return Card(t, width, " ◐  Users ", "\n  Loading…\n", true)
 	}
@@ -76,14 +98,14 @@ func (u *Users) Render(width, height int) string {
 		return Card(t, width, " ◐  Users ", "\n"+errLine(t, u.err)+"\n", true)
 	}
 	cols := []Column{
-		{Header: "NAME", Width: 20},
+		{Header: "NAME", Width: 22},
 		{Header: "UID", Width: 8, Align: lipgloss.Right},
 		{Header: "DESCRIPTION", Width: 0},
 		{Header: "EMAIL", Width: 28},
 		{Header: "STATUS", Width: 12, Align: lipgloss.Right},
 	}
-	rows := make([][]Cell, 0, len(u.users))
-	for _, x := range u.users {
+	rows := make([][]Cell, 0)
+	for _, x := range u.visible() {
 		status := x.Expired
 		if status == "" {
 			status = "normal"
@@ -93,11 +115,18 @@ func (u *Users) Render(width, height int) string {
 			Plain(itoaInt(x.UID)),
 			Plain(x.Description),
 			Plain(x.Email),
-			Styled(" "+status+" ", t.HealthStyle(status)),
+			Styled(status, t.HealthStyle(status)),
 		})
 	}
-	body := "\n" + Table(t, width-4, height-4, cols, rows, u.cursor) + "\n"
-	return Card(t, width, " ◐  Users ", body, true)
+	footerH := 1
+	if f := u.FilterFooter(t); f != "" {
+		footerH = 2
+	}
+	body := "\n" + Table(t, width-4, height-3-footerH, cols, rows, u.Cursor()) + "\n"
+	if f := u.FilterFooter(t); f != "" {
+		body += f + "\n"
+	}
+	return Card(t, width, " ◐  Users — ⏎ details · / filter ", body, true)
 }
 
 func itoaInt(i int) string {
