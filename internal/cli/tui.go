@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -16,24 +15,19 @@ import (
 	"github.com/janbaraniewski/synology-ctl/internal/tui/views"
 )
 
-// startTUI is the entry point invoked by `synoctl` (no subcommand). It
-// loads the active profile, authenticates against DSM, registers every
-// view, and runs the bubbletea program in alt-screen mode.
+// startTUI is the entry point invoked by `synoctl` (no subcommand). On
+// any state-related miss — no profile, no Keychain password, expired
+// device token — it transparently runs Onboard() instead of telling
+// the user to invoke another subcommand.
 func startTUI(parentCtx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
-	profile, ok := cfg.Active()
-	if !ok {
-		// First run — drop straight into the onboarding flow. Returning
-		// an error here would force the user to re-invoke `synoctl login`
-		// manually, which is exactly the friction the new UX removes.
-		p, err := Onboard(parentCtx, cfg)
-		if err != nil {
-			return err
-		}
-		profile = p
+
+	profile, password, err := ensureProfileAndPassword(parentCtx, cfg)
+	if err != nil {
+		return err
 	}
 
 	client, err := dsm.New(dsm.Options{
@@ -47,14 +41,6 @@ func startTUI(parentCtx context.Context) error {
 		return err
 	}
 
-	password, err := config.LoadPassword(profile.Host, profile.Username)
-	if err != nil {
-		return fmt.Errorf("read keychain: %w", err)
-	}
-	if password == "" {
-		return errors.New("no password stored for this profile; run `synoctl login`")
-	}
-
 	authCtx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 	defer cancel()
 	if _, err := client.Login(authCtx, dsm.LoginRequest{
@@ -63,10 +49,31 @@ func startTUI(parentCtx context.Context) error {
 		DeviceID:   profile.DeviceID,
 		DeviceName: "synoctl-" + hostnameOr("local"),
 	}); err != nil {
-		if dsm.IsOTPRequired(err) {
-			return errors.New("OTP required; rerun `synoctl login` to refresh the device token")
+		// OTP required, password rotated, device token revoked — all of
+		// these mean the stored creds are stale. Re-onboard rather than
+		// kicking the user out.
+		if needsReonboard(err) {
+			fmt.Fprintf(os.Stderr, "stored credentials are stale (%s) — re-running onboarding\n", err)
+			profile, password, err = onboardFresh(parentCtx, cfg)
+			if err != nil {
+				return err
+			}
+			client, err = dsm.New(dsm.Options{
+				Scheme: profile.Scheme, Host: profile.Host, Port: profile.Port,
+				Insecure: profile.Insecure, Timeout: 20 * time.Second,
+			})
+			if err != nil {
+				return err
+			}
+			if _, err := client.Login(authCtx, dsm.LoginRequest{
+				Account: profile.Username, Password: password,
+				DeviceID: profile.DeviceID, DeviceName: "synoctl-" + hostnameOr("local"),
+			}); err != nil {
+				return fmt.Errorf("login after re-onboard: %w", err)
+			}
+		} else {
+			return fmt.Errorf("login: %w", err)
 		}
-		return fmt.Errorf("login: %w", err)
 	}
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -74,14 +81,10 @@ func startTUI(parentCtx context.Context) error {
 		_ = client.Logout(ctx)
 	}()
 
-	// Build view context + registry.
 	theme := tui.DefaultTheme()
 	logger := log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: false, Prefix: "tui"})
 	vctx := tui.ViewContext{Client: client, Theme: theme, Keys: tui.DefaultKeys(), Logger: logger}
 
-	// Each top-level tab is a single comprehensive page — no sub-tabs.
-	// Storage, Apps and Admin compose related entities into one
-	// scrollable surface; the cursor moves through everything visible.
 	app := tui.NewApp(client, theme, logger,
 		views.NewDashboard(vctx),
 		views.NewStoragePage(vctx),
@@ -92,4 +95,54 @@ func startTUI(parentCtx context.Context) error {
 	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err = prog.Run()
 	return err
+}
+
+// ensureProfileAndPassword returns a usable profile + password, running
+// Onboard() if either is missing. This is the "auto-login on first run
+// (and on partial state)" promise.
+func ensureProfileAndPassword(ctx context.Context, cfg *config.Config) (*config.Profile, string, error) {
+	profile, ok := cfg.Active()
+	if !ok {
+		return onboardFresh(ctx, cfg)
+	}
+	password, err := config.LoadPassword(profile.Host, profile.Username)
+	if err != nil {
+		return nil, "", fmt.Errorf("read keychain: %w", err)
+	}
+	if password == "" {
+		fmt.Fprintf(os.Stderr, "no password in keychain for %s@%s — re-running onboarding\n",
+			profile.Username, profile.Host)
+		return onboardFresh(ctx, cfg)
+	}
+	return profile, password, nil
+}
+
+func onboardFresh(ctx context.Context, cfg *config.Config) (*config.Profile, string, error) {
+	p, err := Onboard(ctx, cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	pw, err := config.LoadPassword(p.Host, p.Username)
+	if err != nil {
+		return nil, "", fmt.Errorf("read keychain after onboard: %w", err)
+	}
+	if pw == "" {
+		return nil, "", fmt.Errorf("onboarding finished but no password landed in keychain")
+	}
+	return p, pw, nil
+}
+
+// needsReonboard reports whether a login error reflects stale stored
+// state (rather than e.g. a network blip).
+func needsReonboard(err error) bool {
+	if err == nil {
+		return false
+	}
+	if dsm.IsOTPRequired(err) {
+		return true
+	}
+	if dsm.IsAuthFailure(err) {
+		return true
+	}
+	return false
 }
