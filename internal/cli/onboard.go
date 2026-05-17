@@ -117,10 +117,16 @@ const (
 )
 
 func banner() {
-	title := lipgloss.NewStyle().Foreground(mauve).Bold(true).Render(" synoctl ")
-	sub := lipgloss.NewStyle().Foreground(muted).Render("welcome — let's get connected to your NAS")
+	brand := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#1e1e2e")).
+		Background(mauve).
+		Bold(true).
+		Padding(0, 1).
+		Render("synoctl")
+	tagline := lipgloss.NewStyle().Foreground(muted).Render(
+		"a TUI for your Synology NAS · let's get you connected")
 	fmt.Println()
-	fmt.Println(" " + title + "  " + sub)
+	fmt.Println("  " + brand + "  " + tagline)
 	fmt.Println()
 }
 
@@ -139,15 +145,18 @@ func successBanner(p config.Profile) {
 func pickDevice(devices []discover.Device) (*onboardingPick, error) {
 	const manualValue = "__manual__"
 
-	// Compute the widest hostname/address so the columns align without
-	// relying on huh's monospace-but-rendered-with-bullets behaviour.
-	hostW, addrW := 14, 15
+	// Compute column widths so labels stay aligned regardless of the
+	// hostname / network length variation.
+	hostW, addrW, netW := 14, 15, 12
 	for _, d := range devices {
 		if w := len(d.Hostname); w > hostW {
 			hostW = w
 		}
 		if w := len(d.PrimaryAddr()); w > addrW {
 			addrW = w
+		}
+		if w := len(d.Network); w > netW {
+			netW = w
 		}
 	}
 	if hostW > 28 {
@@ -156,6 +165,9 @@ func pickDevice(devices []discover.Device) (*onboardingPick, error) {
 	if addrW > 22 {
 		addrW = 22
 	}
+	if netW > 24 {
+		netW = 24
+	}
 
 	opts := make([]huh.Option[string], 0, len(devices)+1)
 	for _, d := range devices {
@@ -163,9 +175,10 @@ func pickDevice(devices []discover.Device) (*onboardingPick, error) {
 		if d.Secure {
 			scheme = "https"
 		}
-		label := fmt.Sprintf("%-*s  %-*s  %s  %s:%d",
+		label := fmt.Sprintf("%-*s  %-*s  %-*s  %s  %s:%d",
 			hostW, truncTo(d.Hostname, hostW),
 			addrW, truncTo(d.PrimaryAddr(), addrW),
+			netW, truncTo(d.Network, netW),
 			truncTo(coalesce(d.Model, "Synology"), 12),
 			scheme, d.Port,
 		)
@@ -319,8 +332,38 @@ func loginWithFallback(ctx context.Context, pick *onboardingPick, creds *credent
 	return resp, scheme, port, nil
 }
 
+// theme is the synoctl-branded huh theme. We start from huh's
+// Catppuccin base and tighten a few slots so it matches the TUI
+// palette: mauve accent, soft border, generous padding on the focused
+// option.
 func theme() *huh.Theme {
-	return huh.ThemeCatppuccin()
+	t := huh.ThemeCatppuccin()
+	mauve := lipgloss.Color("#cba6f7")
+	text := lipgloss.Color("#cdd6f4")
+	muted := lipgloss.Color("#a6adc8")
+	subtle := lipgloss.Color("#6c7086")
+	bg := lipgloss.Color("#1e1e2e")
+
+	t.Focused.Title = t.Focused.Title.Foreground(mauve).Bold(true)
+	t.Focused.NoteTitle = t.Focused.NoteTitle.Foreground(mauve)
+	t.Focused.Description = t.Focused.Description.Foreground(muted)
+	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(mauve).Bold(true).SetString("▸ ")
+	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(mauve).Bold(true).SetString("▸ ")
+	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(mauve).Bold(true)
+	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(text)
+	t.Focused.UnselectedPrefix = t.Focused.UnselectedPrefix.Foreground(subtle).SetString("  ")
+	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(mauve).SetString("✓ ")
+	t.Focused.Base = t.Focused.Base.BorderForeground(mauve).BorderLeft(true).PaddingLeft(1)
+
+	t.Help.Ellipsis = t.Help.Ellipsis.Foreground(subtle)
+	t.Help.ShortKey = t.Help.ShortKey.Foreground(mauve)
+	t.Help.ShortDesc = t.Help.ShortDesc.Foreground(muted)
+	t.Help.ShortSeparator = t.Help.ShortSeparator.Foreground(subtle)
+	t.Help.FullKey = t.Help.FullKey.Foreground(mauve)
+	t.Help.FullDesc = t.Help.FullDesc.Foreground(muted)
+	t.Help.FullSeparator = t.Help.FullSeparator.Foreground(subtle)
+	_ = bg
+	return t
 }
 
 func coalesce(a, b string) string {

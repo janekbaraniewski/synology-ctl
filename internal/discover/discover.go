@@ -21,6 +21,11 @@ type Device struct {
 	IPv6     []net.IP // v6 addresses
 	Port     int      // DSM web port (5000/5001 usually)
 	Secure   bool     // true when discovered on https
+
+	// Network is the friendly label of the network this device sits on,
+	// derived after discovery by matching the device's IP against local
+	// interfaces. Examples: "LAN", "Tailscale", "VPN (utun0)".
+	Network string
 }
 
 // PrimaryAddr returns the address to connect to: routable IPv4 first,
@@ -187,7 +192,61 @@ func ScanInterfaces(ctx context.Context, timeout time.Duration, ifaces []*net.In
 		r := <-results
 		all = mergeTailnet(all, r.devices)
 	}
+	annotateNetwork(all)
 	return all, nil
+}
+
+// annotateNetwork classifies each device's Network slot by matching its
+// IPv4 against the host's interfaces. We label CGNAT addresses as
+// "Tailscale" and known interface subnets as "<name> · <type>".
+func annotateNetwork(devices []Device) {
+	ifs, _ := Interfaces()
+	for i := range devices {
+		if devices[i].Network != "" {
+			continue
+		}
+		devices[i].Network = networkFor(devices[i], ifs)
+	}
+}
+
+func networkFor(d Device, ifs []Interface) string {
+	for _, ip := range d.IPv4 {
+		if inCGNAT(ip) {
+			return "Tailscale"
+		}
+		for _, iface := range ifs {
+			if ifaceContains(iface, ip) {
+				if iface.Type != "" {
+					return iface.Name + " · " + iface.Type
+				}
+				return iface.Name
+			}
+		}
+	}
+	// Fall back: anything in RFC1918 we call "LAN", everything else
+	// is just "—" so the picker doesn't show a misleading label.
+	for _, ip := range d.IPv4 {
+		if ip.IsPrivate() {
+			return "LAN"
+		}
+	}
+	return "—"
+}
+
+func ifaceContains(iface Interface, ip net.IP) bool {
+	if iface.Iface == nil {
+		return false
+	}
+	addrs, err := iface.Iface.Addrs()
+	if err != nil {
+		return false
+	}
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && ipnet.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // scanMDNS is the original mDNS browse, factored out so ScanInterfaces

@@ -59,6 +59,9 @@ WireGuard, Tailscale, …) — useful when your NAS sits behind a VPN.`,
 			for _, d := range devices {
 				fmt.Println(title.Render(d.Name + " — " + d.Hostname))
 				fmt.Println("  " + muted.Render("address: ") + d.PrimaryAddr())
+				if d.Network != "" {
+					fmt.Println("  " + muted.Render("network: ") + d.Network)
+				}
 				if d.Vendor != "" {
 					fmt.Println("  " + muted.Render("vendor:  ") + d.Vendor)
 				}

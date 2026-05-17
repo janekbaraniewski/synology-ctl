@@ -53,7 +53,6 @@ func startTUI(parentCtx context.Context) error {
 		// these mean the stored creds are stale. Re-onboard rather than
 		// kicking the user out.
 		if needsReonboard(err) {
-			fmt.Fprintf(os.Stderr, "stored credentials are stale (%s) — re-running onboarding\n", err)
 			profile, password, err = onboardFresh(parentCtx, cfg)
 			if err != nil {
 				return err
@@ -110,8 +109,6 @@ func ensureProfileAndPassword(ctx context.Context, cfg *config.Config) (*config.
 		return nil, "", fmt.Errorf("read keychain: %w", err)
 	}
 	if password == "" {
-		fmt.Fprintf(os.Stderr, "no password in keychain for %s@%s — re-running onboarding\n",
-			profile.Username, profile.Host)
 		return onboardFresh(ctx, cfg)
 	}
 	return profile, password, nil
