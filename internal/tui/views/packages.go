@@ -2,6 +2,7 @@ package views
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -12,7 +13,7 @@ import (
 	"github.com/janbaraniewski/synology-ctl/internal/tui"
 )
 
-// Packages lists installed DSM packages with start/stop actions.
+// Packages lists installed DSM packages with start/stop/uninstall actions.
 type Packages struct {
 	listBase
 	ctx     Ctx
@@ -21,6 +22,7 @@ type Packages struct {
 	pending map[string]string // id → action in flight
 	flash   string
 	detail2 *dsm.Package
+	confirm *Confirm
 }
 
 type packagesMsg struct {
@@ -33,7 +35,7 @@ type pkgActionMsg struct {
 }
 
 func NewPackages(c Ctx) tui.View {
-	p := &Packages{ctx: c, pending: map[string]string{}}
+	p := &Packages{ctx: c, pending: map[string]string{}, confirm: NewConfirm(c.Theme)}
 	p.initBase(c)
 	return p
 }
@@ -47,6 +49,7 @@ func (p *Packages) Bindings() []key.Binding {
 		key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start")),
 		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "stop")),
 		key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "restart")),
+		key.NewBinding(key.WithKeys("U"), key.WithHelp("U", "uninstall (with confirm)")),
 	)
 }
 func (p *Packages) Init() tea.Cmd { return p.fetch() }
@@ -71,6 +74,14 @@ func (p *Packages) act(id, action string) tea.Cmd {
 	)
 }
 
+func (p *Packages) actUninstall(id string) tea.Cmd {
+	c := p.ctx.Client
+	return tui.Fetch(60*time.Second,
+		func(ctx context.Context) (struct{}, error) { return struct{}{}, c.PackageUninstall(ctx, id) },
+		func(_ struct{}, err error) tea.Msg { return pkgActionMsg{ID: id, Action: "uninstall", Err: err} },
+	)
+}
+
 func (p *Packages) visible() []dsm.Package {
 	if p.FilterValue() == "" {
 		return p.pkgs
@@ -85,6 +96,22 @@ func (p *Packages) visible() []dsm.Package {
 }
 
 func (p *Packages) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	// Confirmation modal takes input precedence over everything else.
+	if handled, cmd := p.confirm.Update(msg); handled {
+		return p, cmd
+	}
+	switch m := msg.(type) {
+	case ConfirmedMsg:
+		if strings.HasPrefix(m.Token, "uninstall:") {
+			id := strings.TrimPrefix(m.Token, "uninstall:")
+			p.pending[id] = "uninstall"
+			p.flash = "uninstalling " + id + "…"
+			return p, p.actUninstall(id)
+		}
+	case CancelledMsg:
+		p.flash = "cancelled"
+		return p, nil
+	}
 	if p.detail2 != nil {
 		if km, ok := msg.(tea.KeyMsg); ok {
 			switch km.String() {
@@ -135,6 +162,19 @@ func (p *Packages) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			if id := p.selectedID(); id != "" {
 				return p, p.act(id, "restart")
 			}
+		case "U":
+			if id := p.selectedID(); id != "" {
+				name := id
+				for _, pk := range p.pkgs {
+					if pk.ID == id {
+						name = pk.Name
+						break
+					}
+				}
+				p.confirm.Ask("uninstall:"+id, "Uninstall "+name+"?",
+					"This permanently removes the package. Settings stored in /var/packages/"+id+" may also be deleted.")
+				return p, nil
+			}
 		}
 	}
 	return p, nil
@@ -150,6 +190,9 @@ func (p *Packages) selectedID() string {
 
 func (p *Packages) Render(width, height int) string {
 	t := p.ctx.Theme
+	if p.confirm.Open() {
+		return p.confirm.Render(width, height)
+	}
 	if p.detail2 != nil {
 		return renderPackageDetail(t, width, *p.detail2)
 	}
@@ -190,5 +233,5 @@ func (p *Packages) Render(width, height int) string {
 	if f := p.FilterFooter(t); f != "" {
 		body += f + "\n"
 	}
-	return Card(t, width, " ▣  Packages — ⏎ details · / filter · [s]tart [x]stop [R]estart ", body, true)
+	return Card(t, width, " ▣  Packages — ⏎ details · / filter · [s]tart [x]stop [R]estart [U]ninstall ", body, true)
 }

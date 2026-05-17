@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -487,15 +488,28 @@ func (a *App) renderHelpOverlay() string {
 	)
 }
 
-// humanizeUptime accepts DSM's "%d:%d:%d:%d" format (days:hours:minutes:seconds)
-// or a fallback Go duration string and returns a compact form like "47d 3h".
+// humanizeUptime accepts DSM's uptime strings ("ddd:hh:mm:ss" on DSM 6,
+// "hhh:mm:ss" on DSM 7) and returns a compact "Nd Mh" form.
 func humanizeUptime(s string) string {
 	if s == "" {
 		return ""
 	}
 	parts := strings.Split(s, ":")
-	if len(parts) == 4 {
+	switch len(parts) {
+	case 4:
 		return parts[0] + "d " + parts[1] + "h"
+	case 3:
+		// Convert raw hours into days+hours.
+		hours, err := strconv.Atoi(parts[0])
+		if err != nil {
+			return s
+		}
+		days := hours / 24
+		rem := hours % 24
+		if days == 0 {
+			return fmt.Sprintf("%dh %sm", rem, parts[1])
+		}
+		return fmt.Sprintf("%dd %dh", days, rem)
 	}
 	return s
 }

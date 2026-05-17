@@ -6,32 +6,38 @@ import (
 	"net/url"
 )
 
-// SystemInfo mirrors SYNO.Core.System info data.
+// SystemInfo mirrors SYNO.Core.System info data. Field names were
+// derived from a live DS220j running DSM 7.0.1-42218 — DSM ships these
+// as `firmware_ver`/`sys_temp`/`enabled_ntp`/etc., not the names the
+// older documentation suggests.
 type SystemInfo struct {
 	Model           string `json:"model"`
 	Serial          string `json:"serial"`
-	Hostname        string `json:"hostname"`
-	NTPEnabled      bool   `json:"ntp_enabled"`
+	Version         string `json:"firmware_ver"`   // "DSM 7.0.1-42218 Update 7"
+	FirmwareDate    string `json:"firmware_date"`
 	NTPServer       string `json:"ntp_server"`
+	NTPEnabled      bool   `json:"enabled_ntp"`
 	TimeZone        string `json:"time_zone"`
 	TimeZoneDesc    string `json:"time_zone_desc"`
-	Temperature     int    `json:"temperature"`        // celsius
-	TemperatureWarn bool   `json:"temperature_warn"`
-	UptimeSeconds   string `json:"up_time"`            // "00:47:13:22" days:h:m:s
-	SystemTime      string `json:"systime"`
-	Version         string `json:"firmware_ver"`
-	Build           string `json:"firmware_build"`    // DSM build
-	DSMVersion      string `json:"dsm_version"`
-	CPUClock        int    `json:"cpu_clock_speed"`
+	Temperature     int    `json:"sys_temp"`        // celsius
+	TemperatureWarn bool   `json:"temperature_warning"`
+	UptimeSeconds   string `json:"up_time"`         // "hhh:mm:ss" on DSM 7
+	SystemTime      string `json:"time"`            // "2026-05-17 22:31:18"
+	CPUClock        int    `json:"cpu_clock_speed"` // MHz
 	CPUCores        string `json:"cpu_cores"`
 	CPUFamily       string `json:"cpu_family"`
 	CPUSeries       string `json:"cpu_series"`
 	CPUVendor       string `json:"cpu_vendor"`
-	RAMTotalMB      int    `json:"ram_size"`
-	SysTempType     int    `json:"sys_tempType"`
-	EnabledNTP      bool   `json:"enabled_ntp"`
+	RAMTotalMB      int    `json:"ram_size"`        // MiB
+	SupportESATA    string `json:"support_esata"`
 	USBDev          []any  `json:"usb_dev,omitempty"`
 	SataDev         []any  `json:"sata_dev,omitempty"`
+
+	// DSMVersion is kept as an alias for Version to avoid churn in
+	// consumers that pre-date this rename.
+	DSMVersion string `json:"-"`
+	Hostname   string `json:"-"`
+	Build      string `json:"-"`
 }
 
 // SystemInfo returns assorted device facts. DSM 7 requires SYNO.Core.System

@@ -152,18 +152,25 @@ func Wrap(s string, width int) string {
 	return string(runes[:width-1]) + "…"
 }
 
-// HumanDurationFromDSMUptime parses DSM's "d:h:m:s" string into a Duration
-// for downstream formatting; returns 0 on parse failure.
+// HumanDurationFromDSMUptime parses DSM's uptime string into a Duration.
+// DSM 7 returns "hhhh:mm:ss" (no days component), DSM 6 returns
+// "ddd:hh:mm:ss". We accept either.
 func HumanDurationFromDSMUptime(s string) time.Duration {
 	parts := strings.Split(s, ":")
-	if len(parts) != 4 {
-		return 0
+	switch len(parts) {
+	case 3:
+		h, _ := strconv.Atoi(parts[0])
+		m, _ := strconv.Atoi(parts[1])
+		sec, _ := strconv.Atoi(parts[2])
+		return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second
+	case 4:
+		d, _ := strconv.Atoi(parts[0])
+		h, _ := strconv.Atoi(parts[1])
+		m, _ := strconv.Atoi(parts[2])
+		sec, _ := strconv.Atoi(parts[3])
+		return time.Duration(d)*24*time.Hour + time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second
 	}
-	d, _ := strconv.Atoi(parts[0])
-	h, _ := strconv.Atoi(parts[1])
-	m, _ := strconv.Atoi(parts[2])
-	sec, _ := strconv.Atoi(parts[3])
-	return time.Duration(d)*24*time.Hour + time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second
+	return 0
 }
 
 func maxInt(a, b int) int {

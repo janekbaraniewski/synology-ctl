@@ -46,6 +46,14 @@ type FSPerm struct {
 	ACL  any   `json:"acl,omitempty"`
 }
 
+// VolumeStatus is the per-share filesystem space block returned in the
+// FileStation list_share `additional.volume_status` field.
+type VolumeStatus struct {
+	FreeSpace  int64 `json:"freespace,omitempty"`
+	TotalSpace int64 `json:"totalspace,omitempty"`
+	ReadOnly   bool  `json:"readonly,omitempty"`
+}
+
 // FileShare is one entry from SYNO.FileStation.List.list_share — the
 // roots File Station exposes (typically the shared folders).
 type FileShare struct {
@@ -53,11 +61,12 @@ type FileShare struct {
 	Name        string `json:"name"`
 	Path        string `json:"path"`
 	Add         struct {
-		Owner    OwnerInfo `json:"owner,omitempty"`
-		Time     FSTime    `json:"time,omitempty"`
-		Perm     FSPerm    `json:"perm,omitempty"`
-		MountType string  `json:"mount_point_type,omitempty"`
-		VolStatus string  `json:"volume_status,omitempty"`
+		Owner     OwnerInfo    `json:"owner,omitempty"`
+		Time      FSTime       `json:"time,omitempty"`
+		Perm      FSPerm       `json:"perm,omitempty"`
+		MountType string       `json:"mount_point_type,omitempty"`
+		VolStatus VolumeStatus `json:"volume_status,omitempty"`
+		RealPath  string       `json:"real_path,omitempty"`
 	} `json:"additional"`
 }
 

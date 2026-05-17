@@ -80,6 +80,15 @@ func (c *Client) Packages(ctx context.Context) ([]Package, error) {
 	return resp.Packages, nil
 }
 
+// PackageUninstall removes an installed package. Some Synology packages
+// have ctl_uninstall=false and can only be uninstalled from Package
+// Center; we still try the call and let DSM surface the error.
+func (c *Client) PackageUninstall(ctx context.Context, id string) error {
+	params := url.Values{}
+	params.Set("id", id)
+	return c.Call(ctx, "SYNO.Core.Package.Uninstallation", 1, "uninstall", params, nil)
+}
+
 // PackageControl starts, stops, or restarts a package by id.
 func (c *Client) PackageControl(ctx context.Context, id, action string) error {
 	params := url.Values{}

@@ -232,10 +232,12 @@ func (f *Files) renderShares(width, height int, title string) string {
 		return Card(t, width, title, "\n  Loading…\n", true)
 	}
 	cols := []Column{
-		{Header: "NAME", Width: 28},
-		{Header: "PATH", Width: 0},
+		{Header: "NAME", Width: 24},
 		{Header: "OWNER", Width: 14},
-		{Header: "STATUS", Width: 14, Align: lipgloss.Right},
+		{Header: "FREE", Width: 12, Align: lipgloss.Right},
+		{Header: "TOTAL", Width: 12, Align: lipgloss.Right},
+		{Header: "PATH", Width: 0},
+		{Header: "ACCESS", Width: 10, Align: lipgloss.Right},
 	}
 	rows := make([][]Cell, 0)
 	for _, s := range f.visibleShares() {
@@ -243,15 +245,23 @@ func (f *Files) renderShares(width, height int, title string) string {
 		if owner == "" && s.Add.Owner.Group != "" {
 			owner = "(group) " + s.Add.Owner.Group
 		}
-		status := s.Add.VolStatus
-		if status == "" {
-			status = "ok"
+		access := "rw"
+		if s.Add.VolStatus.ReadOnly {
+			access = "ro"
+		}
+		free := "—"
+		total := "—"
+		if s.Add.VolStatus.TotalSpace > 0 {
+			free = humanize.IBytes(uint64(s.Add.VolStatus.FreeSpace))
+			total = humanize.IBytes(uint64(s.Add.VolStatus.TotalSpace))
 		}
 		rows = append(rows, []Cell{
 			Plain(s.Name),
-			Plain(s.Path),
 			Plain(owner),
-			Styled(status, t.HealthStyle(status)),
+			Plain(free),
+			Plain(total),
+			Plain(s.Path),
+			Styled(access, t.HealthStyle("ok")),
 		})
 	}
 	footerH := 1
