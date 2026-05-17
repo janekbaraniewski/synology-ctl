@@ -15,10 +15,11 @@ import (
 // Services lists DSM services with enable/disable controls.
 type Services struct {
 	listBase
-	ctx   Ctx
-	svcs  []dsm.Service
-	err   error
-	flash string
+	ctx     Ctx
+	svcs    []dsm.Service
+	err     error
+	flash   string
+	detail2 *dsm.Service
 }
 
 type servicesMsg struct {
@@ -81,12 +82,23 @@ func (s *Services) visible() []dsm.Service {
 }
 
 func (s *Services) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if s.detail2 != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				s.detail2 = nil
+				return s, nil
+			}
+		}
+		return s, nil
+	}
 	rows := s.visible()
 	if cmd, handled := s.HandleKey(msg, len(rows)); handled {
 		return s, cmd
 	}
 	if s.IsEnter(msg) && len(rows) > 0 {
-		s.ShowDetail("Service "+rows[s.Cursor()].ID, rows[s.Cursor()])
+		picked := rows[s.Cursor()]
+		s.detail2 = &picked
 		return s, nil
 	}
 	switch m := msg.(type) {
@@ -130,9 +142,10 @@ func (s *Services) selID() string {
 
 func (s *Services) Render(width, height int) string {
 	t := s.ctx.Theme
-	if s.DetailVisible() {
-		return s.RenderDetail(width, height)
+	if s.detail2 != nil {
+		return renderServiceDetail(t, width, *s.detail2)
 	}
+	_ = height
 	if s.svcs == nil && s.err == nil {
 		return Card(t, width, " ⌬  Services ", "\n  Loading…\n", true)
 	}

@@ -15,9 +15,10 @@ import (
 // Users lists local DSM accounts.
 type Users struct {
 	listBase
-	ctx   Ctx
-	users []dsm.User
-	err   error
+	ctx     Ctx
+	users   []dsm.User
+	err     error
+	detail2 *dsm.User
 }
 
 type usersMsg struct {
@@ -63,12 +64,23 @@ func (u *Users) visible() []dsm.User {
 }
 
 func (u *Users) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if u.detail2 != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				u.detail2 = nil
+				return u, nil
+			}
+		}
+		return u, nil
+	}
 	rows := u.visible()
 	if cmd, handled := u.HandleKey(msg, len(rows)); handled {
 		return u, cmd
 	}
 	if u.IsEnter(msg) && len(rows) > 0 {
-		u.ShowDetail("User "+rows[u.Cursor()].Name, rows[u.Cursor()])
+		picked := rows[u.Cursor()]
+		u.detail2 = &picked
 		return u, nil
 	}
 	switch m := msg.(type) {
@@ -88,9 +100,10 @@ func (u *Users) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (u *Users) Render(width, height int) string {
 	t := u.ctx.Theme
-	if u.DetailVisible() {
-		return u.RenderDetail(width, height)
+	if u.detail2 != nil {
+		return renderUserDetail(t, width, *u.detail2)
 	}
+	_ = height
 	if u.users == nil && u.err == nil {
 		return Card(t, width, " ◐  Users ", "\n  Loading…\n", true)
 	}

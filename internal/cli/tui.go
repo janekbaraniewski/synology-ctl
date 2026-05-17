@@ -84,6 +84,7 @@ func startTUI(parentCtx context.Context) error {
 		views.NewVolumes(vctx),
 		views.NewDisks(vctx),
 		views.NewShares(vctx),
+		views.NewFiles(vctx),
 		views.NewUsers(vctx),
 		views.NewPackages(vctx),
 		views.NewServices(vctx),

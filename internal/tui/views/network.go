@@ -15,9 +15,10 @@ import (
 // Network shows interface state, addressing and link speed.
 type Network struct {
 	listBase
-	ctx Ctx
-	ifs []dsm.NetworkInterface
-	err error
+	ctx     Ctx
+	ifs     []dsm.NetworkInterface
+	err     error
+	detail2 *dsm.NetworkInterface
 }
 
 type netMsg struct {
@@ -63,12 +64,23 @@ func (n *Network) visible() []dsm.NetworkInterface {
 }
 
 func (n *Network) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if n.detail2 != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				n.detail2 = nil
+				return n, nil
+			}
+		}
+		return n, nil
+	}
 	rows := n.visible()
 	if cmd, handled := n.HandleKey(msg, len(rows)); handled {
 		return n, cmd
 	}
 	if n.IsEnter(msg) && len(rows) > 0 {
-		n.ShowDetail("Interface "+rows[n.Cursor()].IFName, rows[n.Cursor()])
+		picked := rows[n.Cursor()]
+		n.detail2 = &picked
 		return n, nil
 	}
 	switch m := msg.(type) {
@@ -88,9 +100,10 @@ func (n *Network) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (n *Network) Render(width, height int) string {
 	t := n.ctx.Theme
-	if n.DetailVisible() {
-		return n.RenderDetail(width, height)
+	if n.detail2 != nil {
+		return renderNetworkDetail(t, width, *n.detail2)
 	}
+	_ = height
 	if n.ifs == nil && n.err == nil {
 		return Card(t, width, " ⇄  Network ", "\n  Loading…\n", true)
 	}

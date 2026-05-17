@@ -15,9 +15,10 @@ import (
 // Shares is the shared-folders view.
 type Shares struct {
 	listBase
-	ctx    Ctx
-	shares []dsm.Share
-	err    error
+	ctx     Ctx
+	shares  []dsm.Share
+	err     error
+	detail2 *dsm.Share
 }
 
 type sharesMsg struct {
@@ -63,12 +64,23 @@ func (s *Shares) visible() []dsm.Share {
 }
 
 func (s *Shares) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if s.detail2 != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				s.detail2 = nil
+				return s, nil
+			}
+		}
+		return s, nil
+	}
 	rows := s.visible()
 	if cmd, handled := s.HandleKey(msg, len(rows)); handled {
 		return s, cmd
 	}
 	if s.IsEnter(msg) && len(rows) > 0 {
-		s.ShowDetail("Share "+rows[s.Cursor()].Name, rows[s.Cursor()])
+		picked := rows[s.Cursor()]
+		s.detail2 = &picked
 		return s, nil
 	}
 	switch m := msg.(type) {
@@ -88,8 +100,8 @@ func (s *Shares) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (s *Shares) Render(width, height int) string {
 	t := s.ctx.Theme
-	if s.DetailVisible() {
-		return s.RenderDetail(width, height)
+	if s.detail2 != nil {
+		return renderShareDetail(t, width, height, *s.detail2)
 	}
 	if s.shares == nil && s.err == nil {
 		return Card(t, width, " ▦  Shares ", "\n  Loading…\n", true)

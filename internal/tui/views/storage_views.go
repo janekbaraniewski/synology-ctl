@@ -46,11 +46,9 @@ type Volumes struct {
 	storageState
 
 	// detailVol is non-zero when the user has drilled in. We render a
-	// dedicated, charted detail screen for volumes instead of the
-	// generic JSON inspector other views use.
+	// dedicated, charted detail screen for volumes — no JSON fallback.
 	detailVol     *dsm.Volume
 	detailRawJSON []byte
-	rawMode       bool // J toggles raw JSON inside detail
 }
 
 // NewVolumes constructs the view.
@@ -90,10 +88,6 @@ func (v *Volumes) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			switch km.String() {
 			case "esc", "q":
 				v.detailVol = nil
-				v.rawMode = false
-				return v, nil
-			case "J":
-				v.rawMode = !v.rawMode
 				return v, nil
 			}
 		}
@@ -169,14 +163,6 @@ func (v *Volumes) Render(width, height int) string {
 	t := v.ctx.Theme
 	// Custom drill-down takes over the canvas when open.
 	if v.detailVol != nil {
-		if v.rawMode {
-			// Reuse the generic JSON inspector when the user wants the
-			// raw payload — same data, no curation.
-			v.ShowDetail("Volume "+v.detailVol.VolPath+" (raw)", json.RawMessage(v.detailRawJSON))
-			s := v.RenderDetail(width, height)
-			v.detail.Hide() // we own the visibility; the inspector is a one-shot render
-			return s
-		}
 		pools := []dsm.StoragePool{}
 		disks := []dsm.Disk{}
 		if v.storage != nil {
@@ -244,6 +230,7 @@ type Disks struct {
 	listBase
 	ctx Ctx
 	storageState
+	detailDisk *dsm.Disk
 }
 
 func NewDisks(c Ctx) tui.View {
@@ -276,12 +263,39 @@ func (d *Disks) visible() []dsm.Disk {
 }
 
 func (d *Disks) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if d.detailDisk != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				d.detailDisk = nil
+				return d, nil
+			}
+		}
+		switch m := msg.(type) {
+		case tui.TickMsg:
+			return d, d.fetch(d.ctx)
+		case storageMsg:
+			d.storage, d.err = m.S, m.Err
+			if d.storage != nil && d.detailDisk != nil {
+				for _, dk := range d.storage.Disks {
+					if dk.ID == d.detailDisk.ID {
+						dd := dk
+						d.detailDisk = &dd
+						break
+					}
+				}
+			}
+		}
+		return d, nil
+	}
+
 	rows := d.visible()
 	if cmd, handled := d.HandleKey(msg, len(rows)); handled {
 		return d, cmd
 	}
 	if d.IsEnter(msg) && len(rows) > 0 {
-		d.ShowDetail("Disk "+trimDev(rows[d.Cursor()].ID), rows[d.Cursor()])
+		picked := rows[d.Cursor()]
+		d.detailDisk = &picked
 		return d, nil
 	}
 	switch m := msg.(type) {
@@ -301,8 +315,12 @@ func (d *Disks) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 
 func (d *Disks) Render(width, height int) string {
 	t := d.ctx.Theme
-	if d.DetailVisible() {
-		return d.RenderDetail(width, height)
+	if d.detailDisk != nil {
+		pools := []dsm.StoragePool{}
+		if d.storage != nil {
+			pools = d.storage.StoragePools
+		}
+		return renderDiskDetail(t, width, height, *d.detailDisk, pools)
 	}
 	if d.storage == nil && d.err == nil {
 		return Card(t, width, " ●  Disks ", "\n  Loading…\n", true)

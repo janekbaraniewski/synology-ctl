@@ -43,7 +43,7 @@ func renderVolumeDetail(t tui.Theme, width, height int, vol dsm.Volume, pools []
 	}
 	body := strings.Join(parts, "\n")
 	footer := lipgloss.NewStyle().Foreground(t.Muted).Render(
-		"  esc to go back  ·  ↑/↓ scroll  ·  J toggles raw JSON")
+		"  esc to go back · F browses files on this volume")
 	body = body + "\n" + footer
 	return body
 }

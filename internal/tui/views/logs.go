@@ -16,12 +16,13 @@ import (
 // Logs is a paginated system log view with severity colouring.
 type Logs struct {
 	listBase
-	ctx    Ctx
-	logs   []dsm.LogEntry
-	total  int
-	err    error
-	offset int
-	source string
+	ctx     Ctx
+	logs    []dsm.LogEntry
+	total   int
+	err     error
+	offset  int
+	source  string
+	detail2 *dsm.LogEntry
 }
 
 type logsMsg struct {
@@ -79,12 +80,23 @@ func (l *Logs) visible() []dsm.LogEntry {
 }
 
 func (l *Logs) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if l.detail2 != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				l.detail2 = nil
+				return l, nil
+			}
+		}
+		return l, nil
+	}
 	rows := l.visible()
 	if cmd, handled := l.HandleKey(msg, len(rows)); handled {
 		return l, cmd
 	}
 	if l.IsEnter(msg) && len(rows) > 0 {
-		l.ShowDetail("Log entry "+rows[l.Cursor()].Time, rows[l.Cursor()])
+		picked := rows[l.Cursor()]
+		l.detail2 = &picked
 		return l, nil
 	}
 	switch m := msg.(type) {
@@ -128,8 +140,8 @@ func (l *Logs) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 func (l *Logs) Render(width, height int) string {
 	t := l.ctx.Theme
 	title := " ≡  Logs · " + l.source + " — ⏎ details · / filter · [n]ext [p]rev [t]oggle "
-	if l.DetailVisible() {
-		return l.RenderDetail(width, height)
+	if l.detail2 != nil {
+		return renderLogDetail(t, width, *l.detail2)
 	}
 	if l.logs == nil && l.err == nil {
 		return Card(t, width, title, "\n  Loading…\n", true)

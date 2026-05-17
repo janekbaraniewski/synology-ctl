@@ -20,6 +20,7 @@ type Packages struct {
 	err     error
 	pending map[string]string // id → action in flight
 	flash   string
+	detail2 *dsm.Package
 }
 
 type packagesMsg struct {
@@ -84,12 +85,23 @@ func (p *Packages) visible() []dsm.Package {
 }
 
 func (p *Packages) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	if p.detail2 != nil {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			switch km.String() {
+			case "esc", "q":
+				p.detail2 = nil
+				return p, nil
+			}
+		}
+		return p, nil
+	}
 	rows := p.visible()
 	if cmd, handled := p.HandleKey(msg, len(rows)); handled {
 		return p, cmd
 	}
 	if p.IsEnter(msg) && len(rows) > 0 {
-		p.ShowDetail("Package "+rows[p.Cursor()].Name, rows[p.Cursor()])
+		picked := rows[p.Cursor()]
+		p.detail2 = &picked
 		return p, nil
 	}
 	switch m := msg.(type) {
@@ -138,9 +150,10 @@ func (p *Packages) selectedID() string {
 
 func (p *Packages) Render(width, height int) string {
 	t := p.ctx.Theme
-	if p.DetailVisible() {
-		return p.RenderDetail(width, height)
+	if p.detail2 != nil {
+		return renderPackageDetail(t, width, *p.detail2)
 	}
+	_ = height
 	if p.pkgs == nil && p.err == nil {
 		return Card(t, width, " ▣  Packages ", "\n  Loading…\n", true)
 	}
