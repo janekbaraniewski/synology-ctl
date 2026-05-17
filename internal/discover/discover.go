@@ -65,22 +65,138 @@ type keyed struct {
 	dev Device
 }
 
-// Scan browses every interface on the host. Equivalent to
+// Scan browses every interface on the host AND, when Tailscale is
+// running, enumerates tailnet peers and probes each. Equivalent to
 // ScanInterfaces(ctx, timeout, nil).
 func Scan(ctx context.Context, timeout time.Duration) ([]Device, error) {
 	return ScanInterfaces(ctx, timeout, nil)
 }
 
-// ScanInterfaces browses for Synology devices, binding zeroconf to the
-// interfaces in `ifaces`. Pass nil/empty for the default (all
-// interfaces). Useful when a host has multiple networks (VPNs, Wi-Fi,
-// LAN) and the user wants to scan only specific ones.
+// mergeTailnet merges devices from a second scan layer into the
+// accumulated set. When an incoming device shares an IPv4 with an
+// existing one, we keep the richer record (non-empty Hostname,
+// Vendor/Model, preferring named hosts over bare-IP entries from the
+// subnet probe).
+func mergeTailnet(accumulated, incoming []Device) []Device {
+	if len(incoming) == 0 {
+		return accumulated
+	}
+
+	for _, in := range incoming {
+		idx := findOverlap(accumulated, in)
+		if idx < 0 {
+			accumulated = append(accumulated, in)
+			continue
+		}
+		accumulated[idx] = preferRicher(accumulated[idx], in)
+	}
+	return accumulated
+}
+
+// findOverlap returns the index of an existing device that shares an
+// IPv4 with `d`, or -1 when none does.
+func findOverlap(existing []Device, d Device) int {
+	for i, e := range existing {
+		for _, ip := range e.IPv4 {
+			for _, ip2 := range d.IPv4 {
+				if ip.Equal(ip2) {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
+// preferRicher keeps whichever Device carries more useful metadata.
+// "Bare-IP hostname" (from a subnet probe) loses to a real DNS name;
+// non-empty Model / Vendor win. When in doubt we keep the existing
+// record (so the order of arrival doesn't matter).
+func preferRicher(a, b Device) Device {
+	score := func(d Device) int {
+		s := 0
+		if d.Hostname != "" && d.Hostname != d.PrimaryAddr() {
+			s += 2
+		}
+		if d.Name != "" {
+			s += 1
+		}
+		if d.Model != "" {
+			s += 1
+		}
+		if d.Vendor != "" {
+			s += 1
+		}
+		return s
+	}
+	if score(b) > score(a) {
+		// Carry over fields b didn't fill from a.
+		if b.Model == "" {
+			b.Model = a.Model
+		}
+		if b.Name == "" {
+			b.Name = a.Name
+		}
+		return b
+	}
+	if a.Model == "" {
+		a.Model = b.Model
+	}
+	if a.Name == "" {
+		a.Name = b.Name
+	}
+	return a
+}
+
+// ScanInterfaces browses for Synology devices across three independent
+// layers, all running in parallel:
+//
+//  1. mDNS (the local broadcast domain on selected interfaces)
+//  2. subnet sweep (any interface's /22+ subnet, skipping CGNAT)
+//  3. Tailscale peer enumeration (the only way to find /32 tailnet peers)
+//
+// Each layer gets the full `timeout` budget independently — running
+// them sequentially used to starve the later layers when mDNS consumed
+// the whole context.
 func ScanInterfaces(ctx context.Context, timeout time.Duration, ifaces []*net.Interface) ([]Device, error) {
+	type layerResult struct {
+		name    string
+		devices []Device
+	}
+	results := make(chan layerResult, 3)
+
+	go func() {
+		results <- layerResult{"mdns", scanMDNS(ctx, timeout, ifaces)}
+	}()
+	go func() {
+		subnet, _ := ScanSubnets(ctx, timeout, ifaces)
+		results <- layerResult{"subnet", subnet}
+	}()
+	go func() {
+		// HasTailscale already does the daemon check.
+		if HasTailscale(ctx) {
+			tailnet, _ := ScanTailnet(ctx, timeout)
+			results <- layerResult{"tailnet", tailnet}
+		} else {
+			results <- layerResult{"tailnet", nil}
+		}
+	}()
+
+	var all []Device
+	for i := 0; i < 3; i++ {
+		r := <-results
+		all = mergeTailnet(all, r.devices)
+	}
+	return all, nil
+}
+
+// scanMDNS is the original mDNS browse, factored out so ScanInterfaces
+// can run it alongside the subnet + tailnet probes.
+func scanMDNS(ctx context.Context, timeout time.Duration, ifaces []*net.Interface) []Device {
 	scanCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	collect := make(chan keyed, 64)
-
 	var wg sync.WaitGroup
 	for _, svc := range probeServices {
 		wg.Add(1)
@@ -101,14 +217,13 @@ func ScanInterfaces(ctx context.Context, timeout time.Duration, ifaces []*net.In
 		}
 		mergeDevice(existing, k.dev)
 	}
-
 	out := make([]Device, 0, len(byKey))
 	for _, d := range byKey {
 		if isSynology(*d) {
 			out = append(out, *d)
 		}
 	}
-	return out, nil
+	return out
 }
 
 func browseOne(ctx context.Context, service string, secure bool, ifaces []*net.Interface, sink chan<- keyed) {

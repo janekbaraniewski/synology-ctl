@@ -135,34 +135,53 @@ func successBanner(p config.Profile) {
 
 // pickDevice always presents a selection list — single-result included —
 // followed by a "manual entry" sentinel so users can type in hosts that
-// don't broadcast mDNS.
+// don't broadcast mDNS or aren't reachable from any scanned subnet.
 func pickDevice(devices []discover.Device) (*onboardingPick, error) {
 	const manualValue = "__manual__"
 
+	// Compute the widest hostname/address so the columns align without
+	// relying on huh's monospace-but-rendered-with-bullets behaviour.
+	hostW, addrW := 14, 15
+	for _, d := range devices {
+		if w := len(d.Hostname); w > hostW {
+			hostW = w
+		}
+		if w := len(d.PrimaryAddr()); w > addrW {
+			addrW = w
+		}
+	}
+	if hostW > 28 {
+		hostW = 28
+	}
+	if addrW > 22 {
+		addrW = 22
+	}
+
 	opts := make([]huh.Option[string], 0, len(devices)+1)
 	for _, d := range devices {
-		label := fmt.Sprintf("%-22s  %-18s  %s  · port %d",
-			truncTo(d.Hostname, 22),
-			truncTo(d.PrimaryAddr(), 18),
-			truncTo(coalesce(d.Model, "Synology"), 14),
-			d.Port,
+		scheme := "http"
+		if d.Secure {
+			scheme = "https"
+		}
+		label := fmt.Sprintf("%-*s  %-*s  %s  %s:%d",
+			hostW, truncTo(d.Hostname, hostW),
+			addrW, truncTo(d.PrimaryAddr(), addrW),
+			truncTo(coalesce(d.Model, "Synology"), 12),
+			scheme, d.Port,
 		)
 		val := d.PrimaryAddr() + "|" + strconv.Itoa(d.Port) + "|" + boolStr(d.Secure) + "|" + d.Hostname
 		opts = append(opts, huh.NewOption(label, val))
 	}
-	opts = append(opts, huh.NewOption("⌨  Enter host manually", manualValue))
+	opts = append(opts, huh.NewOption("Enter host manually…", manualValue))
 
 	var pick string
-	title := "Discovered devices"
-	desc := "Pick a NAS to log into"
+	title := fmt.Sprintf("Pick a NAS  (%d discovered)", len(devices))
 	if len(devices) == 0 {
-		title = "No devices discovered"
-		desc = "Nothing answered on the local mDNS bus — enter a host manually"
+		title = "No devices discovered — enter one manually"
 	}
 	form := huh.NewForm(huh.NewGroup(
 		huh.NewSelect[string]().
 			Title(title).
-			Description(desc).
 			Options(opts...).
 			Value(&pick),
 	)).WithTheme(theme())
