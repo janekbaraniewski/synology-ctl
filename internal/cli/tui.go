@@ -102,6 +102,7 @@ func startTUI(parentCtx context.Context) error {
 			views.NewShares(vctx),
 			views.NewFiles(vctx),
 			views.NewUsage(vctx),
+			views.NewQuotas(vctx),
 		}},
 		{Name: "Apps", Views: []tui.View{
 			views.NewApps(vctx),
@@ -125,6 +126,7 @@ func startTUI(parentCtx context.Context) error {
 			views.NewAdminPage(vctx),
 			views.NewSchedTasks(vctx),
 			views.NewDDNS(vctx),
+			views.NewNotifications(vctx),
 		}},
 		{Name: "Tools", Views: []tui.View{
 			views.NewExplorer(vctx),
