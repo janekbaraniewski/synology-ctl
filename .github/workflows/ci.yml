@@ -72,7 +72,10 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           version: v2.15.2
-          args: release --snapshot --clean --skip=publish
+          # --skip=sign because cosign isn't installed in the verify
+          # job — the real release.yml installs it and the build path
+          # is the same up to that point.
+          args: release --snapshot --clean --skip=publish --skip=sign
 
       - name: Generate Homebrew formula (dry run)
         run: |
