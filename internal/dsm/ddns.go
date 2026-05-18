@@ -2,6 +2,9 @@ package dsm
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"strconv"
 )
 
 // DDNSProvider is one entry from SYNO.Core.DDNS.Provider.list — a
@@ -110,4 +113,76 @@ func (c *Client) DDNSRecords(ctx context.Context) ([]DDNSRecord, error) {
 		}
 	}
 	return resp.Records, nil
+}
+
+// NewDDNSRecord bundles the inputs needed to register a Dynamic DNS
+// hostname with DSM. Provider is the machine key from DDNSProviders()
+// (e.g. "Synology"); Hostname is the FQDN to keep updated; Username
+// and Password are the provider-side credentials DSM stores so it can
+// post updates on behalf of the user. None of these may be empty.
+type NewDDNSRecord struct {
+	Provider string
+	Hostname string
+	Username string
+	Password string
+}
+
+// CreateDDNSRecord registers a Dynamic DNS hostname via
+// SYNO.Core.DDNS.Record v1 `set`. DSM overloads `set` for both create
+// and update on this API — passing an unknown hostname inserts a new
+// record, while passing one that already exists replaces the stored
+// credentials. The TUI only exposes the insert direction; updating
+// would require an explicit edit form we've deferred.
+func (c *Client) CreateDDNSRecord(ctx context.Context, r NewDDNSRecord) error {
+	if r.Provider == "" {
+		return fmt.Errorf("dsm: ddns provider is required")
+	}
+	if r.Hostname == "" {
+		return fmt.Errorf("dsm: ddns hostname is required")
+	}
+	if r.Username == "" {
+		return fmt.Errorf("dsm: ddns username is required")
+	}
+	if r.Password == "" {
+		return fmt.Errorf("dsm: ddns password is required")
+	}
+	params := url.Values{}
+	params.Set("provider", r.Provider)
+	params.Set("hostname", r.Hostname)
+	params.Set("username", r.Username)
+	params.Set("password", r.Password)
+	// DSM defaults the record to enabled on insert; we send the flag
+	// explicitly so the behaviour doesn't drift with firmware changes.
+	params.Set("enable", "true")
+	return c.Call(ctx, "SYNO.Core.DDNS.Record", 1, "set", params, nil)
+}
+
+// DeleteDDNSRecord removes a Dynamic DNS record via
+// SYNO.Core.DDNS.Record v1 `delete`. DSM keys this call by hostname
+// (not the integer ID surfaced in DDNSRecord) — the hostname uniquely
+// identifies the binding from the user's point of view, and reusing
+// it here means callers don't need to round-trip an ID they may not
+// have on hand.
+func (c *Client) DeleteDDNSRecord(ctx context.Context, hostname string) error {
+	if hostname == "" {
+		return fmt.Errorf("dsm: ddns hostname is required")
+	}
+	params := url.Values{}
+	params.Set("hostname", hostname)
+	return c.Call(ctx, "SYNO.Core.DDNS.Record", 1, "delete", params, nil)
+}
+
+// SetDDNSRecordEnabled flips the enable flag on an existing DDNS record
+// without touching credentials. Endpoint is SYNO.Core.DDNS.Record v1
+// `set` — DSM tolerates the partial form (hostname + enable) on this
+// path, which is how we keep enable/disable out of the full edit
+// workflow.
+func (c *Client) SetDDNSRecordEnabled(ctx context.Context, hostname string, enabled bool) error {
+	if hostname == "" {
+		return fmt.Errorf("dsm: ddns hostname is required")
+	}
+	params := url.Values{}
+	params.Set("hostname", hostname)
+	params.Set("enable", strconv.FormatBool(enabled))
+	return c.Call(ctx, "SYNO.Core.DDNS.Record", 1, "set", params, nil)
 }

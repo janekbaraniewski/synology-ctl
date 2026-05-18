@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -18,6 +19,12 @@ import (
 // configured profiles, and the ordered rules for the currently-active
 // profile. Switching the cursor between profile rows refetches rules
 // for that profile so you can compare without leaving the screen.
+//
+// CRUD lives at the rule level — `c` opens a create form scoped to the
+// currently-loaded profile, `D` deletes the cursor'd rule via confirm,
+// `e` / `d` toggle the enable flag. Profile rows can't be mutated from
+// here; when the cursor is over a profile row the mutation keys flash
+// a "select a rule first" hint instead.
 
 type firewallStatusMsg struct {
 	S   *dsm.FirewallConf
@@ -31,6 +38,15 @@ type firewallRulesMsg struct {
 	Profile string
 	R       []dsm.FirewallRule
 	Err     error
+}
+
+// firewallActionMsg carries the result of a CRUD call back to the loop.
+// Action is the verb used in flash messages ("create", "delete",
+// "enable", "disable") so the success/failure flash phrases naturally.
+type firewallActionMsg struct {
+	Action string
+	Target string // rule name or "rule #<id>"
+	Err    error
 }
 
 type FirewallView struct {
@@ -50,15 +66,59 @@ type FirewallView struct {
 
 	detailRule    *dsm.FirewallRule
 	detailProfile *dsm.FirewallProfile
+
+	form    *FirewallRuleForm
+	confirm *Confirm
+	flash   string
 }
 
-func NewFirewall(c Ctx) tui.View { return &FirewallView{ctx: c} }
+// FirewallRuleSavedMsg fires when the create form is submitted. Like
+// the UserForm pattern: the form is pure UI, the host issues the DSM
+// call.
+type FirewallRuleSavedMsg struct {
+	Profile string
+	Rule    dsm.NewFirewallRule
+}
+
+// FirewallRuleCancelledMsg fires when the user backs out of the form.
+type FirewallRuleCancelledMsg struct{}
+
+func NewFirewall(c Ctx) tui.View {
+	return &FirewallView{
+		ctx:     c,
+		form:    NewFirewallRuleCreateForm(c.Theme),
+		confirm: NewConfirm(c.Theme),
+	}
+}
 
 func (v *FirewallView) Name() string                   { return "firewall" }
 func (v *FirewallView) Title() string                  { return "Firewall" }
 func (v *FirewallView) Icon() string                   { return "▤" }
 func (v *FirewallView) RefreshInterval() time.Duration { return 60 * time.Second }
-func (v *FirewallView) Bindings() []key.Binding        { return BaseBindings() }
+func (v *FirewallView) Bindings() []key.Binding {
+	return append(BaseBindings(),
+		key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "create rule")),
+		key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "delete rule (confirm)")),
+		key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "enable rule")),
+		key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "disable rule")),
+	)
+}
+
+// IsTextEditing defers global keys while the form or confirm modal
+// owns input.
+func (v *FirewallView) IsTextEditing() bool {
+	return v.form.Open() || v.confirm.Open()
+}
+
+// Hint advertises the mutation keys when the cursor is over a rule row.
+// On a profile row we shorten the strip — the mutation keys would just
+// flash "select a rule first", which isn't worth advertising.
+func (v *FirewallView) Hint() string {
+	if r, ok := v.current(); ok && r.kind == fwRowRule {
+		return "⏎ details · c create rule · D delete · e/d enable/disable · / filter · r refresh"
+	}
+	return "↑/↓ move (cursor on profile refetches its rules) · ⏎ details · / filter · r refresh"
+}
 
 func (v *FirewallView) Init() tea.Cmd {
 	return tea.Batch(v.fetchStatus(), v.fetchProfiles(), v.fetchRules(""))
@@ -95,6 +155,59 @@ func (v *FirewallView) fetchRules(profile string) tea.Cmd {
 		func(ctx context.Context) ([]dsm.FirewallRule, error) { return c.FirewallRules(ctx, profile) },
 		func(r []dsm.FirewallRule, err error) tea.Msg {
 			return firewallRulesMsg{Profile: profile, R: r, Err: err}
+		},
+	)
+}
+
+func (v *FirewallView) createCmd(profile string, r dsm.NewFirewallRule) tea.Cmd {
+	c := v.ctx.Client
+	if c == nil {
+		return nil
+	}
+	target := r.Name
+	if target == "" {
+		target = "rule"
+	}
+	return tui.Fetch(30*time.Second,
+		func(ctx context.Context) (struct{}, error) {
+			return struct{}{}, c.CreateFirewallRule(ctx, profile, r)
+		},
+		func(_ struct{}, err error) tea.Msg {
+			return firewallActionMsg{Action: "create", Target: target, Err: err}
+		},
+	)
+}
+
+func (v *FirewallView) deleteCmd(profile string, id int, label string) tea.Cmd {
+	c := v.ctx.Client
+	if c == nil {
+		return nil
+	}
+	return tui.Fetch(30*time.Second,
+		func(ctx context.Context) (struct{}, error) {
+			return struct{}{}, c.DeleteFirewallRule(ctx, profile, id)
+		},
+		func(_ struct{}, err error) tea.Msg {
+			return firewallActionMsg{Action: "delete", Target: label, Err: err}
+		},
+	)
+}
+
+func (v *FirewallView) setEnabledCmd(profile string, id int, label string, enabled bool) tea.Cmd {
+	c := v.ctx.Client
+	if c == nil {
+		return nil
+	}
+	verb := "disable"
+	if enabled {
+		verb = "enable"
+	}
+	return tui.Fetch(30*time.Second,
+		func(ctx context.Context) (struct{}, error) {
+			return struct{}{}, c.SetFirewallRuleEnabled(ctx, profile, id, enabled)
+		},
+		func(_ struct{}, err error) tea.Msg {
+			return firewallActionMsg{Action: verb, Target: label, Err: err}
 		},
 	)
 }
@@ -157,7 +270,74 @@ func (v *FirewallView) current() (firewallRow, bool) {
 	return rows[v.cursor], true
 }
 
+// activeProfile is the profile name we'd target with a mutation. We
+// prefer the rules-loaded profile (so create/delete sit alongside the
+// list the user is looking at) and fall back to the global active
+// profile from the status card. Empty string means "we don't know" —
+// the mutation keys flash a hint and skip the call in that case.
+func (v *FirewallView) activeProfile() string {
+	if v.rulesProfile != "" {
+		return v.rulesProfile
+	}
+	if v.status != nil {
+		return v.status.ProfileName
+	}
+	return ""
+}
+
 func (v *FirewallView) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	// Modal routing first.
+	if handled, cmd := v.form.Update(msg); handled {
+		return v, cmd
+	}
+	if handled, cmd := v.confirm.Update(msg); handled {
+		return v, cmd
+	}
+
+	switch m := msg.(type) {
+	case FirewallRuleSavedMsg:
+		v.flash = "creating rule in " + m.Profile + "…"
+		return v, v.createCmd(m.Profile, m.Rule)
+	case FirewallRuleCancelledMsg:
+		v.flash = "cancelled"
+		return v, nil
+	case ConfirmedMsg:
+		if rest, ok := strings.CutPrefix(m.Token, "fw.delete:"); ok {
+			// Token shape "fw.delete:<profile>/<id>/<label>".
+			parts := strings.SplitN(rest, "/", 3)
+			if len(parts) == 3 {
+				profile := parts[0]
+				var id int
+				_, _ = fmt.Sscanf(parts[1], "%d", &id)
+				label := parts[2]
+				v.flash = "deleting " + label + "…"
+				return v, v.deleteCmd(profile, id, label)
+			}
+		}
+		return v, nil
+	case CancelledMsg:
+		v.flash = "cancelled"
+		return v, nil
+	case firewallActionMsg:
+		if m.Err != nil {
+			v.flash = m.Action + " " + m.Target + " failed: " + m.Err.Error()
+		} else {
+			switch m.Action {
+			case "create":
+				v.flash = m.Target + " created"
+			case "delete":
+				v.flash = m.Target + " deleted"
+			case "enable":
+				v.flash = m.Target + " enabled"
+			case "disable":
+				v.flash = m.Target + " disabled"
+			default:
+				v.flash = m.Action + " " + m.Target + " ok"
+			}
+		}
+		return v, v.fetchRules(v.rulesProfile)
+	}
+
 	if v.detailRule != nil || v.detailProfile != nil {
 		if km, ok := msg.(tea.KeyMsg); ok && (km.String() == "esc" || km.String() == "q") {
 			v.detailRule, v.detailProfile = nil, nil
@@ -225,6 +405,82 @@ func (v *FirewallView) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 					v.detailRule = &rule
 				}
 			}
+		case "c":
+			// Create scoped to the active profile. The form needs a
+			// profile name to attach the rule to; if we don't have one,
+			// flash a hint and skip opening the form rather than
+			// guessing.
+			profile := v.activeProfile()
+			if profile == "" {
+				v.flash = "no profile loaded — move the cursor to a profile first"
+				return v, nil
+			}
+			v.form.OpenCreate(profile)
+		case "D":
+			r, ok := v.current()
+			if !ok {
+				return v, nil
+			}
+			if r.kind != fwRowRule {
+				v.flash = "select a rule first (current row is a profile)"
+				return v, nil
+			}
+			rule := v.filterRules()[r.index]
+			profile := v.activeProfile()
+			if profile == "" {
+				v.flash = "no profile loaded for this rule list"
+				return v, nil
+			}
+			label := fmt.Sprintf("rule #%d", rule.Order)
+			if rule.Comment != "" {
+				label = rule.Comment
+			}
+			v.confirm.Ask(
+				fmt.Sprintf("fw.delete:%s/%d/%s", profile, rule.RuleID, label),
+				"Delete "+label+"?",
+				"Removing a rule changes how DSM evaluates traffic. There is no undo — recreate from the create form if you change your mind.")
+		case "e":
+			r, ok := v.current()
+			if !ok {
+				return v, nil
+			}
+			if r.kind != fwRowRule {
+				v.flash = "select a rule first (current row is a profile)"
+				return v, nil
+			}
+			rule := v.filterRules()[r.index]
+			profile := v.activeProfile()
+			if profile == "" {
+				v.flash = "no profile loaded for this rule list"
+				return v, nil
+			}
+			label := fmt.Sprintf("rule #%d", rule.Order)
+			if rule.Comment != "" {
+				label = rule.Comment
+			}
+			v.flash = "enabling " + label + "…"
+			return v, v.setEnabledCmd(profile, rule.RuleID, label, true)
+		case "d":
+			r, ok := v.current()
+			if !ok {
+				return v, nil
+			}
+			if r.kind != fwRowRule {
+				v.flash = "select a rule first (current row is a profile)"
+				return v, nil
+			}
+			rule := v.filterRules()[r.index]
+			profile := v.activeProfile()
+			if profile == "" {
+				v.flash = "no profile loaded for this rule list"
+				return v, nil
+			}
+			label := fmt.Sprintf("rule #%d", rule.Order)
+			if rule.Comment != "" {
+				label = rule.Comment
+			}
+			v.flash = "disabling " + label + "…"
+			return v, v.setEnabledCmd(profile, rule.RuleID, label, false)
 		}
 	}
 	return v, nil
@@ -242,6 +498,12 @@ func (v *FirewallView) clampCursor() {
 
 func (v *FirewallView) Render(width, height int) string {
 	t := v.ctx.Theme
+	if v.form.Open() {
+		return v.form.Render(width, height)
+	}
+	if v.confirm.Open() {
+		return v.confirm.Render(width, height)
+	}
 	if v.detailRule != nil {
 		return renderFirewallRuleDetail(t, width, *v.detailRule)
 	}
@@ -293,7 +555,10 @@ func (v *FirewallView) Render(width, height int) string {
 
 	parts = append(parts, "")
 	parts = append(parts, lipgloss.NewStyle().Foreground(t.Muted).Render(
-		"  ↑/↓ move (cursor on profile refetches its rules) · ⏎ details · / filter · r refresh"))
+		"  ↑/↓ move · ⏎ details · c create · D delete · e/d enable/disable · / filter · r refresh"))
+	if v.flash != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(t.Muted).Render("  "+v.flash))
+	}
 	if fr := v.filter.Render(t); fr != "" {
 		parts = append(parts, fr)
 	}
@@ -463,7 +728,7 @@ func renderFirewallRuleDetail(t tui.Theme, width int, r dsm.FirewallRule) string
 			wrap(lipgloss.NewStyle().Foreground(t.Text), r.Comment, width-6)
 		parts = append(parts, t.Card(false).Width(width-2).Render(body))
 	}
-	parts = append(parts, noteCard(t, width, "  esc to go back · rule editing isn't wired up yet"))
+	parts = append(parts, noteCard(t, width, "  esc to go back · D delete · e/d enable/disable"))
 	return strings.Join(parts, "\n")
 }
 
@@ -510,4 +775,299 @@ func renderFirewallRuleInspect(t tui.Theme, width int, r dsm.FirewallRule) strin
 		"",
 		muted(t, "  Comment") + "\n  " + r.Comment,
 	}, "\n")
+}
+
+// — FirewallRuleForm —————————————————————————————————————————————————
+//
+// FirewallRuleForm is the create-only form for new firewall rules. It
+// mirrors DDNSForm / UserForm: pure UI, no DSM calls — submission emits
+// FirewallRuleSavedMsg, cancel emits FirewallRuleCancelledMsg.
+//
+// Action and Protocol are cycle fields rather than text inputs — DSM
+// only accepts a small enumerated set for each, so a cycle is faster
+// to operate and removes a class of typos. The cursor lands on the
+// cycle by tabbing to it and toggles with space (or enter, since enter
+// would otherwise advance + submit on the last field).
+
+// fwRuleField identifies which form field has focus. Mixed text inputs
+// + cycle fields can't share a single textinput slice cleanly, so we
+// route keystrokes via this enum instead.
+type fwRuleField int
+
+const (
+	fwFieldName fwRuleField = iota
+	fwFieldAction
+	fwFieldProtocol
+	fwFieldSource
+	fwFieldDestPort
+	fwFieldCount
+)
+
+// FirewallRuleForm holds the create-form state. profile is the firewall
+// profile we'll attach the rule to (set on OpenCreate, passed through
+// the SavedMsg).
+type FirewallRuleForm struct {
+	theme tui.Theme
+
+	open    bool
+	profile string
+
+	name     textinput.Model
+	source   textinput.Model
+	destPort textinput.Model
+
+	action   string // cycle: "allow" / "deny"
+	protocol string // cycle: "tcp" / "udp" / "all" / "icmp"
+
+	focus fwRuleField
+	flash string
+
+	tabKey    key.Binding
+	shiftTab  key.Binding
+	spaceKey  key.Binding
+	submitKey key.Binding
+	cancelKey key.Binding
+}
+
+var (
+	fwActionCycle   = []string{"allow", "deny"}
+	fwProtocolCycle = []string{"tcp", "udp", "all", "icmp"}
+)
+
+// NewFirewallRuleCreateForm builds an idle form.
+func NewFirewallRuleCreateForm(theme tui.Theme) *FirewallRuleForm {
+	mk := func(placeholder string, charLimit int) textinput.Model {
+		ti := textinput.New()
+		ti.Placeholder = placeholder
+		ti.CharLimit = charLimit
+		ti.Width = 32
+		return ti
+	}
+	return &FirewallRuleForm{
+		theme:     theme,
+		name:      mk("Allow HTTPS", 128),
+		source:    mk("any · 10.0.0.0/8 · 1.2.3.4", 64),
+		destPort:  mk("443 · 1024-65535 · all", 32),
+		action:    "allow",
+		protocol:  "tcp",
+		tabKey:    key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next field")),
+		shiftTab:  key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("⇧⇥", "prev field")),
+		spaceKey:  key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "cycle")),
+		submitKey: key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("⌃s", "save")),
+		cancelKey: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+	}
+}
+
+// OpenCreate opens the form scoped to profile. The profile is part of
+// the submission payload — DSM keys rule mutations by profile.
+func (f *FirewallRuleForm) OpenCreate(profile string) {
+	f.open = true
+	f.flash = ""
+	f.profile = profile
+	f.name.SetValue("")
+	f.source.SetValue("")
+	f.destPort.SetValue("")
+	f.action = "allow"
+	f.protocol = "tcp"
+	f.focus = fwFieldName
+	f.refocus()
+}
+
+func (f *FirewallRuleForm) Open() bool { return f.open }
+
+func (f *FirewallRuleForm) Close() {
+	f.open = false
+	f.name.Blur()
+	f.source.Blur()
+	f.destPort.Blur()
+}
+
+func (f *FirewallRuleForm) textFieldFor(field fwRuleField) *textinput.Model {
+	switch field {
+	case fwFieldName:
+		return &f.name
+	case fwFieldSource:
+		return &f.source
+	case fwFieldDestPort:
+		return &f.destPort
+	}
+	return nil
+}
+
+func (f *FirewallRuleForm) refocus() {
+	for _, fi := range []*textinput.Model{&f.name, &f.source, &f.destPort} {
+		fi.Blur()
+	}
+	if ti := f.textFieldFor(f.focus); ti != nil {
+		ti.Focus()
+	}
+}
+
+func (f *FirewallRuleForm) advance(delta int) {
+	n := int(fwFieldCount)
+	cur := int(f.focus) + delta
+	if cur < 0 {
+		cur = n - 1
+	}
+	if cur >= n {
+		cur = 0
+	}
+	f.focus = fwRuleField(cur)
+	f.refocus()
+}
+
+// cycleCurrent rotates the value of the cycle field at focus. Returns
+// true when focus is on a cycle field (so the caller knows to swallow
+// the key). Other fields fall through to the textinput.
+func (f *FirewallRuleForm) cycleCurrent(delta int) bool {
+	switch f.focus {
+	case fwFieldAction:
+		f.action = cycleValue(fwActionCycle, f.action, delta)
+		return true
+	case fwFieldProtocol:
+		f.protocol = cycleValue(fwProtocolCycle, f.protocol, delta)
+		return true
+	}
+	return false
+}
+
+// cycleValue returns the next value after cur in values, wrapping at
+// either end. delta is +1 or -1.
+func cycleValue(values []string, cur string, delta int) string {
+	idx := 0
+	for i, v := range values {
+		if v == cur {
+			idx = i
+			break
+		}
+	}
+	idx += delta
+	if idx < 0 {
+		idx = len(values) - 1
+	}
+	if idx >= len(values) {
+		idx = 0
+	}
+	return values[idx]
+}
+
+func (f *FirewallRuleForm) submit() (handled bool, cmd tea.Cmd) {
+	name := strings.TrimSpace(f.name.Value())
+	src := strings.TrimSpace(f.source.Value())
+	dst := strings.TrimSpace(f.destPort.Value())
+	if dst == "" {
+		dst = "all"
+	}
+	r := dsm.NewFirewallRule{
+		Name:     name,
+		Action:   f.action,
+		Protocol: f.protocol,
+		Source:   src,
+		DestPort: dst,
+		Profile:  f.profile,
+	}
+	profile := f.profile
+	f.Close()
+	return true, func() tea.Msg { return FirewallRuleSavedMsg{Profile: profile, Rule: r} }
+}
+
+// Update routes keys while the form is open.
+func (f *FirewallRuleForm) Update(msg tea.Msg) (handled bool, cmd tea.Cmd) {
+	if !f.open {
+		return false, nil
+	}
+	km, isKey := msg.(tea.KeyMsg)
+	if isKey {
+		switch {
+		case key.Matches(km, f.cancelKey):
+			f.Close()
+			return true, func() tea.Msg { return FirewallRuleCancelledMsg{} }
+		case key.Matches(km, f.submitKey):
+			return f.submit()
+		case key.Matches(km, f.tabKey):
+			f.advance(1)
+			return true, nil
+		case key.Matches(km, f.shiftTab):
+			f.advance(-1)
+			return true, nil
+		case km.Type == tea.KeyEnter:
+			// On a cycle field, Enter rotates forward — that's the most
+			// natural "primary action" for a chip-like field. On a text
+			// field, Enter on the last field submits, otherwise it
+			// advances.
+			if f.cycleCurrent(1) {
+				return true, nil
+			}
+			if f.focus == fwFieldCount-1 {
+				return f.submit()
+			}
+			f.advance(1)
+			return true, nil
+		case key.Matches(km, f.spaceKey):
+			// Space cycles when focus is on a cycle field. For text
+			// fields, we fall through so space inserts a literal space.
+			if f.cycleCurrent(1) {
+				return true, nil
+			}
+		}
+	}
+	// Text fields receive the key (cycle fields are exhausted by the
+	// switch above).
+	if ti := f.textFieldFor(f.focus); ti != nil {
+		var c tea.Cmd
+		*ti, c = ti.Update(msg)
+		return true, c
+	}
+	return true, nil
+}
+
+// Render draws the form centered. Returns "" when closed.
+func (f *FirewallRuleForm) Render(width, height int) string {
+	if !f.open {
+		return ""
+	}
+	t := f.theme
+	w := width - 16
+	if w < 60 {
+		w = width - 4
+	}
+	title := lipgloss.NewStyle().Foreground(t.Accent).Bold(true)
+	hint := lipgloss.NewStyle().Foreground(t.Muted)
+	labelStyle := lipgloss.NewStyle().Foreground(t.Muted).Width(14)
+	row := func(label string, view string) string { return labelStyle.Render(label) + " " + view }
+
+	f.name.Width = w - 20
+	f.source.Width = w - 20
+	f.destPort.Width = w - 20
+
+	chip := func(label string, focused bool) string {
+		if focused {
+			return t.Chip(t.Accent).Render(" " + label + " ")
+		}
+		return t.SubtleChip().Render(" " + label + " ")
+	}
+	actionView := chip(f.action, f.focus == fwFieldAction) + "  " +
+		hint.Render("(space / enter to cycle: "+strings.Join(fwActionCycle, " · ")+")")
+	protoView := chip(f.protocol, f.focus == fwFieldProtocol) + "  " +
+		hint.Render("(space / enter to cycle: "+strings.Join(fwProtocolCycle, " · ")+")")
+
+	body := row("Name", f.name.View()) + "\n" +
+		row("Action", actionView) + "\n" +
+		row("Protocol", protoView) + "\n" +
+		row("Source", f.source.View()) + "\n" +
+		row("Dst port", f.destPort.View())
+
+	footer := t.Chip(t.Accent2).Render(" ⌃s save ") + "  " +
+		t.SubtleChip().Render(" tab · next ") + "  " +
+		t.SubtleChip().Render(" space · cycle ") + "  " +
+		t.SubtleChip().Render(" esc · cancel ")
+	view := title.Render("Create firewall rule · "+f.profile) + "\n" +
+		hint.Render("Tab between fields. ⌃s submits. Source 'any' / empty allows all sources.") + "\n\n" +
+		body + "\n\n" + footer
+	if f.flash != "" {
+		view += "\n\n" + lipgloss.NewStyle().Foreground(t.Error).Render("  "+f.flash)
+	}
+	card := t.Card(true).Width(w).Render(view)
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, card,
+		lipgloss.WithWhitespaceForeground(t.Faint))
 }
