@@ -10,10 +10,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The reusable callee needs contents:write + pull-requests:write to
+# nudge Dependabot's branches. A reusable workflow can never escalate
+# beyond what its caller grants -- so the caller has to grant them too,
+# otherwise GitHub rejects the run with "startup_failure" before the
+# job ever spins up.
 permissions:
-  contents: read
+  contents: write
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   refresh-dependabot-prs:
@@ -21,4 +26,5 @@ jobs:
     uses: ./.github/workflows/refresh-dependabot-prs.yaml
     secrets: inherit
     permissions:
-      contents: read
+      contents: write
+      pull-requests: write
