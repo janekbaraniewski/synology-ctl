@@ -9,8 +9,18 @@ on:
   workflow_call:
     secrets:
       AUTOMATION_TOKEN:
-        description: User PAT or equivalent token with repo/write and workflow permission.
-        required: true
+        description: |
+          Optional PAT or GitHub App token used to update Dependabot PR
+          branches. Falls back to RELEASE_PLEASE_TOKEN and then the
+          default GITHUB_TOKEN. The default token *can* call
+          updateBranch when `permissions.contents: write` is granted,
+          so this workflow runs cleanly even without any PAT — its
+          openusage origin required a PAT for unrelated reasons we
+          don't share here.
+        required: false
+      RELEASE_PLEASE_TOKEN:
+        description: Fallback PAT if AUTOMATION_TOKEN is unset.
+        required: false
 
 permissions:
   contents: read
@@ -19,17 +29,20 @@ jobs:
   refresh:
     name: Refresh open Dependabot PRs
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
-          github-token: ${{ secrets.AUTOMATION_TOKEN }}
+          github-token: ${{ secrets.AUTOMATION_TOKEN || secrets.RELEASE_PLEASE_TOKEN || github.token }}
           script: |
             const { owner, repo } = context.repo;
-
-            if (!process.env.GH_TOKEN) {
-              core.setFailed('AUTOMATION_TOKEN is required. Use a PAT with repo and workflow scope, or an equivalent GitHub App token.');
-              return;
-            }
+            // No hard token check — the action input above falls back to
+            // the default GITHUB_TOKEN, which is enough to call
+            // pulls.updateBranch when contents:write is granted. PATs
+            // give more headroom for cross-fork PRs etc., but the basic
+            // refresh path works without one.
 
             const isAlreadyCurrent = (error) =>
               error.status === 422 &&
@@ -120,4 +133,4 @@ jobs:
               }
             }
         env:
-          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.RELEASE_PLEASE_TOKEN || github.token }}
