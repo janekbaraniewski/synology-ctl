@@ -19,8 +19,8 @@ type BackupTask struct {
 	RepoTarget   string   `json:"repo_target,omitempty"` // "local", "rsync", "s3", …
 	RepoPath     string   `json:"repo_path,omitempty"`
 	RepoHost     string   `json:"repo_host,omitempty"`
-	Schedule     string   `json:"schedule,omitempty"`   // human-formatted "Every day 03:00"
-	LastRun      int64    `json:"last_run,omitempty"`   // epoch seconds
+	Schedule     string   `json:"schedule,omitempty"` // human-formatted "Every day 03:00"
+	LastRun      int64    `json:"last_run,omitempty"` // epoch seconds
 	NextRun      int64    `json:"next_run,omitempty"`
 	LastStatus   string   `json:"last_status,omitempty"`
 	LastDuration int64    `json:"last_duration,omitempty"` // seconds

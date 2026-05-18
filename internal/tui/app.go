@@ -28,9 +28,9 @@ type App struct {
 	keys   KeyMap
 	logger *log.Logger
 
-	flat    []flatItem
-	active  int // index into flat — never a header
-	byName  map[string]int
+	flat   []flatItem
+	active int // index into flat — never a header
+	byName map[string]int
 
 	width, height int
 
@@ -301,7 +301,10 @@ func (a *App) updatePalette(m tea.KeyMsg) (tea.Model, tea.Cmd) {
 // to title-substring. Section headers are ignored.
 func (a *App) resolveView(q string) int {
 	q = strings.ToLower(strings.TrimSpace(q))
-	type cand struct{ i int; name, title string }
+	type cand struct {
+		i           int
+		name, title string
+	}
 	var cs []cand
 	for i, it := range a.flat {
 		if it.view == nil {

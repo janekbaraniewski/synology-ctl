@@ -29,10 +29,10 @@ type KeyMap struct {
 	NavSectionP key.Binding // 'P' — previous section
 	NavFocus    key.Binding // ctrl-l toggle sidebar focus (palette substitute)
 
-	Action       key.Binding // 'a' — context action menu
-	ToggleInsp   key.Binding // 'i' — toggle inspector
-	ToggleSide   key.Binding // 'b' — toggle sidebar (more space for content)
-	YankPath     key.Binding // 'y' — copy current path/id to clipboard
+	Action     key.Binding // 'a' — context action menu
+	ToggleInsp key.Binding // 'i' — toggle inspector
+	ToggleSide key.Binding // 'b' — toggle sidebar (more space for content)
+	YankPath   key.Binding // 'y' — copy current path/id to clipboard
 }
 
 // DefaultKeys returns the standard, vim-flavoured binding set.

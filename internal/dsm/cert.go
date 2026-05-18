@@ -25,9 +25,9 @@ type Certificate struct {
 	UserDeletable   flexBool `json:"user_deletable,omitempty"`
 	RenewURL        string   `json:"acme_url,omitempty"`
 	Services        []struct {
-		Service  string `json:"service"`
-		Display  string `json:"display_name,omitempty"`
-		Owner    string `json:"owner,omitempty"`
+		Service    string `json:"service"`
+		Display    string `json:"display_name,omitempty"`
+		Owner      string `json:"owner,omitempty"`
 		Subscriber string `json:"subscriber,omitempty"`
 	} `json:"services,omitempty"`
 }

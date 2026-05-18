@@ -47,15 +47,15 @@ func (c *Client) DDNSProviders(ctx context.Context) ([]DDNSProvider, error) {
 // Dynamic DNS hostname binding, including its last-known external IP and
 // last update status.
 type DDNSRecord struct {
-	ID            int      `json:"id"`
-	Hostname      string   `json:"hostname"`
-	Provider      string   `json:"provider,omitempty"`
-	Username      string   `json:"username,omitempty"`
-	Enable        flexBool `json:"enable,omitempty"`
-	ExternalIPv4  string   `json:"external_address,omitempty"`
-	ExternalIPv6  string   `json:"external_address_ipv6,omitempty"`
-	LastUpdated   int64    `json:"last_update_time,omitempty"` // epoch seconds
-	Status        string   `json:"status,omitempty"`
+	ID              int      `json:"id"`
+	Hostname        string   `json:"hostname"`
+	Provider        string   `json:"provider,omitempty"`
+	Username        string   `json:"username,omitempty"`
+	Enable          flexBool `json:"enable,omitempty"`
+	ExternalIPv4    string   `json:"external_address,omitempty"`
+	ExternalIPv6    string   `json:"external_address_ipv6,omitempty"`
+	LastUpdated     int64    `json:"last_update_time,omitempty"` // epoch seconds
+	Status          string   `json:"status,omitempty"`
 	HeartbeatEnable flexBool `json:"heartbeat_enable,omitempty"`
 }
 

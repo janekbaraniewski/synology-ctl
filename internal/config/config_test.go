@@ -6,10 +6,10 @@ import (
 
 func TestConfig_Active(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  *Config
-		want    string // host of the active profile
-		wantOk  bool
+		name   string
+		config *Config
+		want   string // host of the active profile
+		wantOk bool
 	}{
 		{
 			name:   "empty",
@@ -55,17 +55,17 @@ func TestConfig_Active(t *testing.T) {
 
 func TestConfig_UpsertAndRemove(t *testing.T) {
 	c := &Config{}
-	
+
 	c.Upsert(Profile{Name: "test", Host: "127.0.0.1"})
 	if len(c.Profiles) != 1 {
 		t.Errorf("Upsert() failed to add")
 	}
-	
+
 	c.Upsert(Profile{Name: "test", Host: "192.168.0.1"})
 	if len(c.Profiles) != 1 || c.Profiles[0].Host != "192.168.0.1" {
 		t.Errorf("Upsert() failed to update")
 	}
-	
+
 	if !c.Remove("test") {
 		t.Errorf("Remove() failed to remove")
 	}

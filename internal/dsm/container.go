@@ -14,15 +14,15 @@ type Container struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Image       string   `json:"image"`
-	Status      string   `json:"status"`           // running / stop / paused
-	State       string   `json:"state,omitempty"`  // alt: created / running / exited
+	Status      string   `json:"status"`          // running / stop / paused
+	State       string   `json:"state,omitempty"` // alt: created / running / exited
 	IsPackage   flexBool `json:"is_package,omitempty"`
 	Command     string   `json:"command,omitempty"`
 	CreatedAt   string   `json:"created_at,omitempty"`
 	StartedAt   string   `json:"started_at,omitempty"`
 	FinishedAt  string   `json:"finished_at,omitempty"`
-	CPU         float64  `json:"cpu,omitempty"`        // percent
-	Memory      int64    `json:"memory,omitempty"`     // bytes
+	CPU         float64  `json:"cpu,omitempty"`    // percent
+	Memory      int64    `json:"memory,omitempty"` // bytes
 	MemoryPct   float64  `json:"memory_percent,omitempty"`
 	NetworkUp   int64    `json:"network_up,omitempty"` // bytes
 	NetworkDown int64    `json:"network_down,omitempty"`
@@ -57,16 +57,16 @@ func (c *Client) Containers(ctx context.Context) ([]Container, error) {
 // stored locally on the DSM. Repository/tag are split on DSM 7.x; some
 // older firmware returns them joined in `repotag`.
 type Image struct {
-	ID         string   `json:"id"`
-	Repository string   `json:"repository,omitempty"`
-	Tag        string   `json:"tag,omitempty"`
-	RepoTag    string   `json:"repotag,omitempty"`
-	Size       int64    `json:"size,omitempty"` // bytes
-	VirtualSize int64   `json:"virtual_size,omitempty"`
-	Created    int64    `json:"created,omitempty"` // epoch seconds
-	Containers int      `json:"containers,omitempty"`
-	InUse      flexBool `json:"in_use,omitempty"`
-	Description string  `json:"description,omitempty"`
+	ID          string   `json:"id"`
+	Repository  string   `json:"repository,omitempty"`
+	Tag         string   `json:"tag,omitempty"`
+	RepoTag     string   `json:"repotag,omitempty"`
+	Size        int64    `json:"size,omitempty"` // bytes
+	VirtualSize int64    `json:"virtual_size,omitempty"`
+	Created     int64    `json:"created,omitempty"` // epoch seconds
+	Containers  int      `json:"containers,omitempty"`
+	InUse       flexBool `json:"in_use,omitempty"`
+	Description string   `json:"description,omitempty"`
 }
 
 // DockerImages lists locally stored container images via SYNO.Docker.Image
@@ -126,4 +126,3 @@ func (c *Client) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 	}
 	return resp.Networks, nil
 }
-

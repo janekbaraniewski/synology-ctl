@@ -25,7 +25,7 @@ type backupTasksMsg struct {
 type HyperBackupView struct {
 	ctx Ctx
 
-	tasks   []dsm.BackupTask
+	tasks    []dsm.BackupTask
 	tasksErr error
 
 	cursor int

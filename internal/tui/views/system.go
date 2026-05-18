@@ -161,7 +161,7 @@ func (s *System) Render(width, height int) string {
 	rows := [][]string{
 		{pair("Model", s.info.Model), pair("Serial", s.info.Serial), pair("DSM", coalesce(s.info.DSMVersion, s.info.Version))},
 		{
-			pair("CPU", strings.TrimSpace(s.info.CPUVendor+" "+s.info.CPUFamily) + " · " + s.info.CPUCores + " cores"),
+			pair("CPU", strings.TrimSpace(s.info.CPUVendor+" "+s.info.CPUFamily)+" · "+s.info.CPUCores+" cores"),
 			pair("RAM", fmt.Sprintf("%d MB", s.info.RAMTotalMB)),
 			pair("Uptime", uptime),
 		},

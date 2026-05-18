@@ -87,9 +87,10 @@ func NewApps(c Ctx) tui.View {
 	}
 }
 
-func (a *Apps) Name() string                   { return "apps" }
-func (a *Apps) Title() string                  { return "Apps" }
-func (a *Apps) Icon() string                   { return "▣" }
+func (a *Apps) Name() string  { return "apps" }
+func (a *Apps) Title() string { return "Apps" }
+func (a *Apps) Icon() string  { return "▣" }
+
 // RefreshInterval is intentionally long — a single Packages or Services
 // fetch can take 20–40s on a low-end NAS, so a 30s tick was kicking off
 // new fetches before the previous ones returned and piling up

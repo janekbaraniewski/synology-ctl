@@ -27,14 +27,14 @@ import (
 type OTPModal struct {
 	theme tui.Theme
 
-	open    bool
-	prompt  string
-	token   string
-	input   textinput.Model
-	width   int
-	submit  key.Binding
-	cancel  key.Binding
-	flash   string
+	open   bool
+	prompt string
+	token  string
+	input  textinput.Model
+	width  int
+	submit key.Binding
+	cancel key.Binding
+	flash  string
 }
 
 // OTPProvidedMsg is delivered when the user submits a code.

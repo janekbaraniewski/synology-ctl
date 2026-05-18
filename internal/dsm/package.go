@@ -215,12 +215,12 @@ func firstNonEmpty(a, b []ServerPackage) []ServerPackage {
 // PollInterval / Timeout control the install-status loop in
 // PackageInstall.
 type InstallOpts struct {
-	VolumePath    string
-	CheckCodesign bool
-	CheckDsm      bool
+	VolumePath     string
+	CheckCodesign  bool
+	CheckDsm       bool
 	BetaIfNoStable bool
-	PollInterval  time.Duration
-	Timeout       time.Duration
+	PollInterval   time.Duration
+	Timeout        time.Duration
 }
 
 // PackageInstall orchestrates the multi-step install flow against

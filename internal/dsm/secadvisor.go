@@ -8,7 +8,7 @@ import (
 // global Security Advisor configuration plus a summary of the latest
 // scan (counts by severity, last-scan timestamp).
 type SecAdvisorReport struct {
-	Baseline       string   `json:"baseline,omitempty"`     // "default" / "secure" / "custom"
+	Baseline       string   `json:"baseline,omitempty"` // "default" / "secure" / "custom"
 	ScheduleEnable flexBool `json:"sched_enable,omitempty"`
 	Schedule       string   `json:"sched_str,omitempty"`
 	LastScanned    int64    `json:"last_scan_time,omitempty"` // epoch seconds
@@ -41,16 +41,16 @@ func (c *Client) SecurityAdvisorReport(ctx context.Context) (*SecAdvisorReport, 
 // — a single Security Advisor check with its current severity. status
 // values come from DSM: "safe" / "info" / "warning" / "risk" / "critical".
 type SecAdvisorItem struct {
-	ID          string `json:"id"`
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
-	Severity    string `json:"severity,omitempty"` // alias for status on some builds
-	Status      string `json:"status,omitempty"`
-	Category    string `json:"category,omitempty"`
-	LastScanned int64  `json:"last_scan_time,omitempty"` // epoch seconds
-	Suggestion  string `json:"suggestion,omitempty"`
+	ID          string   `json:"id"`
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Severity    string   `json:"severity,omitempty"` // alias for status on some builds
+	Status      string   `json:"status,omitempty"`
+	Category    string   `json:"category,omitempty"`
+	LastScanned int64    `json:"last_scan_time,omitempty"` // epoch seconds
+	Suggestion  string   `json:"suggestion,omitempty"`
 	Hide        flexBool `json:"hide,omitempty"`
-	Result      string `json:"result,omitempty"`
+	Result      string   `json:"result,omitempty"`
 }
 
 // SecurityAdvisorItems lists the Security Advisor checklist via

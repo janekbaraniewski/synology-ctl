@@ -15,7 +15,7 @@ type ABTask struct {
 	DeviceType     string   `json:"device_type,omitempty"` // "pc" / "vmm" / "fileserver" / "m365" / "gws"
 	DeviceID       int      `json:"device_id,omitempty"`
 	DeviceName     string   `json:"device_name,omitempty"`
-	State          string   `json:"state,omitempty"`        // "ready" / "running" / "error"
+	State          string   `json:"state,omitempty"` // "ready" / "running" / "error"
 	Status         string   `json:"status,omitempty"`
 	LastBackupTime int64    `json:"last_backup_time,omitempty"`
 	NextBackupTime int64    `json:"next_backup_time,omitempty"`
