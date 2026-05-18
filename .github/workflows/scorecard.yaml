@@ -30,7 +30,12 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          publish_results: true
+          # Only publish to api.scorecard.dev on the scheduled cron run.
+          # That endpoint has been intermittently failing with context
+          # deadline exceeded, which turns every push-to-main into a red
+          # check even though analysis + SARIF upload both succeed. The
+          # public badge only needs one fresh publish per week.
+          publish_results: ${{ github.event_name == 'schedule' }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
