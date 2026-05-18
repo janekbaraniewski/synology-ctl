@@ -2,7 +2,9 @@ package dsm
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // ScheduledTask is one entry from SYNO.Core.TaskScheduler.list — a
@@ -49,4 +51,34 @@ func (c *Client) ScheduledTasks(ctx context.Context) ([]ScheduledTask, error) {
 		return nil, err
 	}
 	return resp.Tasks, nil
+}
+
+// RunScheduledTask kicks off a scheduled task immediately, regardless of
+// its schedule. Endpoint is SYNO.Core.TaskScheduler v1 `run`. DSM keys
+// tasks by integer id (the same id returned by ScheduledTasks). Returns
+// nil on success; the task itself runs asynchronously — observing its
+// progress means polling ScheduledTasks for LastRunTime / LastRunResult
+// to flip.
+func (c *Client) RunScheduledTask(ctx context.Context, id int) error {
+	if id <= 0 {
+		return fmt.Errorf("dsm: task id is required")
+	}
+	params := url.Values{}
+	params.Set("task_id", strconv.Itoa(id))
+	return c.Call(ctx, "SYNO.Core.TaskScheduler", 1, "run", params, nil)
+}
+
+// SetScheduledTaskEnabled toggles whether a scheduled task fires on its
+// configured schedule. Endpoint is SYNO.Core.TaskScheduler v1 `set` with
+// just the enable flag — DSM is forgiving about omitting the rest of
+// the task definition on this path, which is what lets us treat
+// enable/disable as a one-shot operation instead of a full edit.
+func (c *Client) SetScheduledTaskEnabled(ctx context.Context, id int, enabled bool) error {
+	if id <= 0 {
+		return fmt.Errorf("dsm: task id is required")
+	}
+	params := url.Values{}
+	params.Set("task_id", strconv.Itoa(id))
+	params.Set("enable", strconv.FormatBool(enabled))
+	return c.Call(ctx, "SYNO.Core.TaskScheduler", 1, "set", params, nil)
 }

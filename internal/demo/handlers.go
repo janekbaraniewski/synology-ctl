@@ -98,11 +98,18 @@ func (s *Server) handlers() map[string]handlerFn {
 		"SYNO.Core.SecurityAdvisor.Conf:get":       s.handleSecAdvisorConf,
 		"SYNO.Core.SecurityAdvisor.Checklist:list": s.handleSecAdvisorItems,
 		"SYNO.Core.TaskScheduler:list":             s.handleSchedTasks,
+		"SYNO.Core.TaskScheduler:run":              noopOK,
+		"SYNO.Core.TaskScheduler:set":              noopOK,
 		"SYNO.Core.Network.Firewall.Conf:get":      s.handleFirewallStatus,
 		"SYNO.Core.Network.Firewall.Profile:list":  s.handleFirewallProfiles,
 		"SYNO.Core.Network.Firewall.Rules:list":    s.handleFirewallRules,
+		"SYNO.Core.Network.Firewall.Rules:add":     noopOK,
+		"SYNO.Core.Network.Firewall.Rules:delete":  noopOK,
+		"SYNO.Core.Network.Firewall.Rules:set":     noopOK,
 		"SYNO.Core.DDNS.Provider:list":             s.handleDDNSProviders,
 		"SYNO.Core.DDNS.Record:list":               s.handleDDNSRecords,
+		"SYNO.Core.DDNS.Record:set":                noopOK,
+		"SYNO.Core.DDNS.Record:delete":             noopOK,
 		"SYNO.Core.DDNS.ExtIP:list":                s.handleDDNSExtIP,
 	}
 }

@@ -16,11 +16,25 @@ import (
 
 // SchedTasksView lists DSM's Task Scheduler entries (scripts, S.M.A.R.T.
 // tests, reboots…). 60s refresh — schedule changes are rare and we don't
-// need to follow them tick-by-tick.
+// need to follow them tick-by-tick. The view exposes three mutations
+// (`X` run-now, `e` enable, `d` disable) layered on top of the original
+// browse experience; mutations route through a Confirm modal for run-now
+// (irreversible side-effects) and fire directly for the enable/disable
+// toggles (cheap and undoable).
 
 type schedTasksMsg struct {
 	T   []dsm.ScheduledTask
 	Err error
+}
+
+// schedTaskActionMsg carries the result of a run / enable / disable call
+// back into the bubbletea loop so the view can flash success or failure
+// and trigger a refetch. Action is the verb used in flash messages —
+// "run", "enable", "disable" — so the user sees the right word.
+type schedTaskActionMsg struct {
+	Action string
+	Name   string
+	Err    error
 }
 
 type SchedTasksView struct {
@@ -33,16 +47,47 @@ type SchedTasksView struct {
 	filter Filter
 	loaded bool
 
-	detail *dsm.ScheduledTask
+	detail  *dsm.ScheduledTask
+	confirm *Confirm
+	flash   string
 }
 
-func NewSchedTasks(c Ctx) tui.View { return &SchedTasksView{ctx: c} }
+func NewSchedTasks(c Ctx) tui.View {
+	return &SchedTasksView{
+		ctx:     c,
+		confirm: NewConfirm(c.Theme),
+	}
+}
 
 func (v *SchedTasksView) Name() string                   { return "tasks" }
 func (v *SchedTasksView) Title() string                  { return "Scheduled Tasks" }
 func (v *SchedTasksView) Icon() string                   { return "◷" }
 func (v *SchedTasksView) RefreshInterval() time.Duration { return 60 * time.Second }
-func (v *SchedTasksView) Bindings() []key.Binding        { return BaseBindings() }
+func (v *SchedTasksView) Bindings() []key.Binding {
+	return append(BaseBindings(),
+		key.NewBinding(key.WithKeys("X"), key.WithHelp("X", "run now (confirm)")),
+		key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "enable")),
+		key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "disable")),
+	)
+}
+
+// IsTextEditing tells the shell to defer global keybindings while the
+// run-now confirm modal owns input. Without it the y/n keys would
+// double-fire as global accelerators.
+func (v *SchedTasksView) IsTextEditing() bool {
+	return v.confirm.Open()
+}
+
+// Hint is the context-aware bottom-strip text. When the cursor is parked
+// on a task row the strip advertises the mutation keys; otherwise it
+// stays generic.
+func (v *SchedTasksView) Hint() string {
+	rows := v.filtered()
+	if v.cursor >= 0 && v.cursor < len(rows) {
+		return "⏎ details · X run · e enable · d disable · / filter · r refresh"
+	}
+	return "⏎ details · / filter · r refresh"
+}
 
 func (v *SchedTasksView) Init() tea.Cmd { return v.fetch() }
 
@@ -54,6 +99,44 @@ func (v *SchedTasksView) fetch() tea.Cmd {
 	return tui.Fetch(10*time.Second,
 		func(ctx context.Context) ([]dsm.ScheduledTask, error) { return c.ScheduledTasks(ctx) },
 		func(x []dsm.ScheduledTask, err error) tea.Msg { return schedTasksMsg{T: x, Err: err} },
+	)
+}
+
+// runCmd kicks off the chosen task and routes the outcome back as a
+// schedTaskActionMsg. The 30s ceiling is enough for DSM to accept the
+// call — the task itself runs out of band.
+func (v *SchedTasksView) runCmd(id int, name string) tea.Cmd {
+	c := v.ctx.Client
+	if c == nil {
+		return nil
+	}
+	return tui.Fetch(30*time.Second,
+		func(ctx context.Context) (struct{}, error) { return struct{}{}, c.RunScheduledTask(ctx, id) },
+		func(_ struct{}, err error) tea.Msg {
+			return schedTaskActionMsg{Action: "run", Name: name, Err: err}
+		},
+	)
+}
+
+// setEnabledCmd routes an enable/disable call back as a
+// schedTaskActionMsg. The Action verb on the message drives the
+// success/failure flash so the user sees the right word.
+func (v *SchedTasksView) setEnabledCmd(id int, name string, enabled bool) tea.Cmd {
+	c := v.ctx.Client
+	if c == nil {
+		return nil
+	}
+	verb := "disable"
+	if enabled {
+		verb = "enable"
+	}
+	return tui.Fetch(30*time.Second,
+		func(ctx context.Context) (struct{}, error) {
+			return struct{}{}, c.SetScheduledTaskEnabled(ctx, id, enabled)
+		},
+		func(_ struct{}, err error) tea.Msg {
+			return schedTaskActionMsg{Action: verb, Name: name, Err: err}
+		},
 	)
 }
 
@@ -71,6 +154,49 @@ func (v *SchedTasksView) filtered() []dsm.ScheduledTask {
 }
 
 func (v *SchedTasksView) Update(msg tea.Msg) (tui.View, tea.Cmd) {
+	// Modal routing first — the confirm overlay owns input while open
+	// (run-now is irreversible from a user's perspective, so we don't
+	// want a stray `y` keypress to slip past the modal).
+	if handled, cmd := v.confirm.Update(msg); handled {
+		return v, cmd
+	}
+
+	switch m := msg.(type) {
+	case ConfirmedMsg:
+		if rest, ok := strings.CutPrefix(m.Token, "schedtask.run:"); ok {
+			// Token shape is "schedtask.run:<id>/<name>". Splitting at
+			// the first slash keeps task names with slashes intact.
+			parts := strings.SplitN(rest, "/", 2)
+			if len(parts) == 2 {
+				var id int
+				_, _ = fmt.Sscanf(parts[0], "%d", &id)
+				name := parts[1]
+				v.flash = "running " + name + "…"
+				return v, v.runCmd(id, name)
+			}
+		}
+		return v, nil
+	case CancelledMsg:
+		v.flash = "cancelled"
+		return v, nil
+	case schedTaskActionMsg:
+		if m.Err != nil {
+			v.flash = m.Action + " " + m.Name + " failed: " + m.Err.Error()
+		} else {
+			switch m.Action {
+			case "run":
+				v.flash = "started " + m.Name
+			case "enable":
+				v.flash = m.Name + " enabled"
+			case "disable":
+				v.flash = m.Name + " disabled"
+			default:
+				v.flash = m.Action + " " + m.Name + " ok"
+			}
+		}
+		return v, v.fetch()
+	}
+
 	if v.detail != nil {
 		if km, ok := msg.(tea.KeyMsg); ok && (km.String() == "esc" || km.String() == "q") {
 			v.detail = nil
@@ -119,6 +245,29 @@ func (v *SchedTasksView) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 				t := rows[v.cursor]
 				v.detail = &t
 			}
+		case "X":
+			rows := v.filtered()
+			if v.cursor >= 0 && v.cursor < len(rows) {
+				t := rows[v.cursor]
+				v.confirm.Ask(
+					fmt.Sprintf("schedtask.run:%d/%s", t.ID, t.Name),
+					"Run task now: "+t.Name+"?",
+					"This kicks off the task immediately, outside its schedule. Side effects depend on what the task does (script, S.M.A.R.T. test, reboot…).")
+			}
+		case "e":
+			rows := v.filtered()
+			if v.cursor >= 0 && v.cursor < len(rows) {
+				t := rows[v.cursor]
+				v.flash = "enabling " + t.Name + "…"
+				return v, v.setEnabledCmd(t.ID, t.Name, true)
+			}
+		case "d":
+			rows := v.filtered()
+			if v.cursor >= 0 && v.cursor < len(rows) {
+				t := rows[v.cursor]
+				v.flash = "disabling " + t.Name + "…"
+				return v, v.setEnabledCmd(t.ID, t.Name, false)
+			}
 		}
 	}
 	return v, nil
@@ -136,6 +285,9 @@ func (v *SchedTasksView) clampCursor() {
 
 func (v *SchedTasksView) Render(width, height int) string {
 	t := v.ctx.Theme
+	if v.confirm.Open() {
+		return v.confirm.Render(width, height)
+	}
 	if v.detail != nil {
 		return renderSchedTaskDetail(t, width, *v.detail)
 	}
@@ -160,7 +312,10 @@ func (v *SchedTasksView) Render(width, height int) string {
 	}
 	parts = append(parts, "")
 	parts = append(parts, lipgloss.NewStyle().Foreground(t.Muted).Render(
-		"  ↑/↓ move · ⏎ details · / filter · esc clear · r refresh"))
+		"  ↑/↓ move · ⏎ details · X run · e enable · d disable · / filter · r refresh"))
+	if v.flash != "" {
+		parts = append(parts, lipgloss.NewStyle().Foreground(t.Muted).Render("  "+v.flash))
+	}
 	if fr := v.filter.Render(t); fr != "" {
 		parts = append(parts, fr)
 	}
@@ -249,7 +404,7 @@ func renderSchedTaskDetail(t tui.Theme, width int, tk dsm.ScheduledTask) string 
 		chip("runnable", tk.CanRun.Bool()),
 		chip("editable", tk.CanEdit.Bool()),
 	}))
-	parts = append(parts, noteCard(t, width, "  esc to go back · run-now / edit aren't wired up yet"))
+	parts = append(parts, noteCard(t, width, "  esc to go back · X run · e enable · d disable"))
 	return strings.Join(parts, "\n")
 }
 
