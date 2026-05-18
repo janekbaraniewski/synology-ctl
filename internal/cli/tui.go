@@ -131,6 +131,12 @@ func startTUI(parentCtx context.Context) error {
 			views.NewDDNS(vctx),
 			views.NewNotifications(vctx),
 		}},
+		{Name: "Settings", Views: []tui.View{
+			views.NewDSMUpdate(vctx),
+			views.NewTimeRegion(vctx),
+			views.NewPower(vctx),
+			views.NewExternalAccess(vctx),
+		}},
 		{Name: "Tools", Views: []tui.View{
 			views.NewExplorer(vctx),
 		}},

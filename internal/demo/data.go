@@ -1080,3 +1080,87 @@ var demoISCSILUNs = []map[string]any{
 		"device_path":    "/volume1/@iSCSI/lun-103.lun",
 	},
 }
+
+// — settings: dsm update / time-region / power / external-access —
+
+// demoDSMUpdate mirrors the SYNO.Core.Upgrade.Server `check` response.
+// We stage a single Update Patch (DSM 7.2.2-72806 U3 → U4) so the view
+// has something interesting to draw, with a non-zero `last_check` two
+// hours ago to make the "checked at" line plausible.
+var demoDSMUpdate = map[string]any{
+	"current":           map[string]any{"version": "DSM 7.2.2-72806 Update 3"},
+	"update":            map[string]any{"available": true, "version": "DSM 7.2.2-72806 Update 4", "release_link": "https://www.synology.com/en-global/releaseNote/DSM"},
+	"release_notes_url": "https://www.synology.com/en-global/releaseNote/DSM",
+	"last_check":        time.Now().Add(-2 * time.Hour).Unix(),
+	"auto_update":       true,
+	"channel":           "stable",
+}
+
+// demoTimeRegionNTP and demoTimeRegionLang surface the enrichment paths
+// the TimeRegion client walks after SYNO.Core.System.info. The base
+// timezone + NTP fields come from handleSystemInfo (Europe/Warsaw,
+// pool.ntp.org) — these add auto-DST + 24h format on top.
+var demoTimeRegionNTP = map[string]any{
+	"enabled":  true,
+	"server":   "pool.ntp.org",
+	"auto_dst": true,
+}
+
+var demoTimeRegionLang = map[string]any{
+	"time_format": "24",
+	"date_format": "yyyy-MM-dd",
+	"locale":      "en_US",
+	"timezone":    "Europe/Warsaw",
+}
+
+// demoPowerSchedule lays out two recurring entries: a "power off at
+// 03:00 every night" pair (sun–sat) plus a "power on at 06:00
+// weekdays" trio (mon–fri). Splitting the daily rule across all seven
+// keys keeps it visible in the table without us having to teach the
+// view a "daily" pseudo-key.
+var demoPowerSchedule = []map[string]any{
+	{"day": "sun", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "mon", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "tue", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "wed", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "thu", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "fri", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "sat", "hour": 3, "minute": 0, "action": "power-off", "enabled": true},
+	{"day": "mon", "hour": 6, "minute": 0, "action": "power-on", "enabled": true},
+	{"day": "tue", "hour": 6, "minute": 0, "action": "power-on", "enabled": true},
+	{"day": "wed", "hour": 6, "minute": 0, "action": "power-on", "enabled": true},
+	{"day": "thu", "hour": 6, "minute": 0, "action": "power-on", "enabled": true},
+	{"day": "fri", "hour": 6, "minute": 0, "action": "power-on", "enabled": true},
+}
+
+// demoWakeOnLAN mirrors SYNO.Core.Hardware.WOL "get". The MAC tracks
+// the eth0 demo interface (see demoNetworkInterfaces) so users
+// drilling into network + power feel like they're looking at the same
+// device.
+var demoWakeOnLAN = map[string]any{
+	"enable": true,
+	"mac":    "00:11:32:DE:M0:01",
+}
+
+// demoQuickConnect models a typical "happy path" QuickConnect
+// configuration: relay on (the box is reachable via Synology's relay
+// even from CGNAT networks) and router-compat true (UPnP succeeded).
+var demoQuickConnect = map[string]any{
+	"enabled":          true,
+	"quickconnect_id":  "demo-ds923",
+	"is_router_compat": true,
+	"relay_enabled":    true,
+}
+
+// demoPortForwarding shows the three forwards a typical home NAS ends
+// up with: DSM HTTPS, the DSM admin port, and Plex. External ports
+// match internal ports — UPnP defaults to mirroring unless the user
+// explicitly remaps.
+var demoPortForwarding = map[string]any{
+	"enabled": true,
+	"mappings": []map[string]any{
+		{"protocol": "tcp", "internal_port": 443, "external_port": 443, "service": "HTTPS"},
+		{"protocol": "tcp", "internal_port": 5001, "external_port": 5001, "service": "DSM"},
+		{"protocol": "tcp", "internal_port": 32400, "external_port": 32400, "service": "Plex"},
+	},
+}
