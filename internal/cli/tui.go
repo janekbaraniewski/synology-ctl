@@ -35,7 +35,15 @@ func startTUI(parentCtx context.Context) error {
 		Host:     profile.Host,
 		Port:     profile.Port,
 		Insecure: profile.Insecure,
-		Timeout:  20 * time.Second,
+		// 3 minutes is generous, but it has to cover the very slowest
+		// call we make: SYNO.Core.Package.Server.list, which walks
+		// Synology's upstream package index over the public internet.
+		// On a DS220j on a residential line that has been observed to
+		// take 60–90s. The 45s cap we used before caused the Available
+		// tab to error out before the call ever completed. Per-view
+		// fetches still apply their own (shorter) context deadlines on
+		// top of this — this is just the HTTP-client ceiling.
+		Timeout: 3 * time.Minute,
 	})
 	if err != nil {
 		return err
@@ -84,12 +92,44 @@ func startTUI(parentCtx context.Context) error {
 	logger := log.NewWithOptions(os.Stderr, log.Options{ReportTimestamp: false, Prefix: "tui"})
 	vctx := tui.ViewContext{Client: client, Theme: theme, Keys: tui.DefaultKeys(), Logger: logger}
 
-	app := tui.NewApp(client, theme, logger,
-		views.NewDashboard(vctx),
-		views.NewStoragePage(vctx),
-		views.NewAppsPage(vctx),
-		views.NewAdminPage(vctx),
-	)
+	sections := []tui.NavSection{
+		{Name: "Overview", Views: []tui.View{
+			views.NewDashboard(vctx),
+		}},
+		{Name: "Storage", Views: []tui.View{
+			views.NewVolumes(vctx),
+			views.NewDisks(vctx),
+			views.NewShares(vctx),
+			views.NewFiles(vctx),
+			views.NewUsage(vctx),
+		}},
+		{Name: "Apps", Views: []tui.View{
+			views.NewApps(vctx),
+			views.NewContainers(vctx),
+		}},
+		{Name: "Backup", Views: []tui.View{
+			views.NewHyperBackup(vctx),
+			views.NewActiveBackup(vctx),
+		}},
+		{Name: "Services", Views: []tui.View{
+			views.NewDrive(vctx),
+			views.NewSurveillance(vctx),
+		}},
+		{Name: "Security", Views: []tui.View{
+			views.NewCerts(vctx),
+			views.NewSecurityAdvisor(vctx),
+			views.NewFirewall(vctx),
+		}},
+		{Name: "System", Views: []tui.View{
+			views.NewAdminPage(vctx),
+			views.NewSchedTasks(vctx),
+			views.NewDDNS(vctx),
+		}},
+		{Name: "Tools", Views: []tui.View{
+			views.NewExplorer(vctx),
+		}},
+	}
+	app := tui.NewApp(client, theme, logger, sections)
 
 	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err = prog.Run()
