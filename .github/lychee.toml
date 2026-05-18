@@ -17,13 +17,18 @@ exclude = [
     "^https?://kb\\.synology\\.com/",
     # Tailscale docs occasionally 403 lychee
     "^https?://tailscale\\.com/",
+    # OpenSSF Scorecard times out under CI load on shared hosts
+    "^https?://scorecard\\.dev/",
 ]
+
+# Bump timeout to ride out slow upstreams (the default 20s was tripping
+# scorecard.dev intermittently).
 
 # Per-host concurrency: avoid hammering any single host.
 max_concurrency = 8
 
 # Timeouts and retries.
-timeout = 20
+timeout = 30
 retry_wait_time = 5
 max_retries = 2
 
