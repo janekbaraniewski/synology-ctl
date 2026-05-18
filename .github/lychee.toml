@@ -19,6 +19,10 @@ exclude = [
     "^https?://tailscale\\.com/",
     # OpenSSF Scorecard times out under CI load on shared hosts
     "^https?://scorecard\\.dev/",
+    # GitHub compare/<future-tag> URLs that release-please writes into
+    # CHANGELOG.md before the tag exists. The URL is correct + becomes
+    # live the moment the release PR is merged; lychee just runs first.
+    "^https?://github\\.com/.+/compare/.+",
 ]
 
 # Bump timeout to ride out slow upstreams (the default 20s was tripping
