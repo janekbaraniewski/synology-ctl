@@ -133,6 +133,16 @@ func (s *Server) handlers() map[string]handlerFn {
 		// — iscsi / san manager —
 		"SYNO.Core.ISCSI.Target:list": s.handleISCSITargets,
 		"SYNO.Core.ISCSI.LUN:list":    s.handleISCSILUNs,
+
+		// — settings: DSM update / time-region / power / external-access —
+		"SYNO.Core.Upgrade.Server:check":        s.handleDSMUpdate,
+		"SYNO.Core.Upgrade:download_status":     s.handleDSMDownloadStatus,
+		"SYNO.Core.Region.NTP:get":              s.handleRegionNTP,
+		"SYNO.Core.Region.Language:get":         s.handleRegionLanguage,
+		"SYNO.Core.Hardware.PowerSchedule:list": s.handlePowerSchedule,
+		"SYNO.Core.Hardware.WOL:get":            s.handleWakeOnLAN,
+		"SYNO.Core.QuickConnect:get":            s.handleQuickConnect,
+		"SYNO.Core.PortForwarding:list":         s.handlePortForwarding,
 	}
 }
 
@@ -720,4 +730,44 @@ func (s *Server) handleISCSITargets(_ *Server, _ url.Values) any {
 }
 func (s *Server) handleISCSILUNs(_ *Server, _ url.Values) any {
 	return map[string]any{"luns": demoISCSILUNs, "total": len(demoISCSILUNs)}
+}
+
+// — settings: DSM update / time-region / power / external-access —
+
+// handleDSMUpdate serves SYNO.Core.Upgrade.Server `check`. The fields
+// closely mirror what real DSM 7.2 returns; the dsm package walks
+// both nested `current.version` / `update.version` keys and the
+// flat metadata.
+func (s *Server) handleDSMUpdate(_ *Server, _ url.Values) any {
+	return demoDSMUpdate
+}
+
+// handleDSMDownloadStatus serves SYNO.Core.Upgrade `download_status`.
+// The real endpoint reports what's queued for install; we surface
+// the same "update available" envelope as the catalog call so the
+// dsm package's fallback path produces a consistent answer.
+func (s *Server) handleDSMDownloadStatus(_ *Server, _ url.Values) any {
+	return map[string]any{
+		"version": "DSM 7.2.2-72806 Update 3",
+		"status":  "idle",
+		"update": map[string]any{
+			"available": true,
+			"version":   "DSM 7.2.2-72806 Update 4",
+		},
+	}
+}
+
+func (s *Server) handleRegionNTP(_ *Server, _ url.Values) any      { return demoTimeRegionNTP }
+func (s *Server) handleRegionLanguage(_ *Server, _ url.Values) any { return demoTimeRegionLang }
+
+func (s *Server) handlePowerSchedule(_ *Server, _ url.Values) any {
+	return map[string]any{"schedules": demoPowerSchedule, "total": len(demoPowerSchedule)}
+}
+
+func (s *Server) handleWakeOnLAN(_ *Server, _ url.Values) any { return demoWakeOnLAN }
+
+func (s *Server) handleQuickConnect(_ *Server, _ url.Values) any { return demoQuickConnect }
+
+func (s *Server) handlePortForwarding(_ *Server, _ url.Values) any {
+	return demoPortForwarding
 }
