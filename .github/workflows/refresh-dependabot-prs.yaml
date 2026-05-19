@@ -41,7 +41,29 @@ jobs:
               error.status === 422 &&
               /no new commits|not behind|up to date/i.test(error.message);
 
+            const shouldAskDependabotToRecreate = (error) =>
+              /permission|workflow/i.test(error.message);
+
             const baseShaByRef = new Map();
+
+            async function requestDependabotRecreate(pullNumber, reason) {
+              const token = process.env.DEPENDABOT_COMMAND_TOKEN;
+              if (!token) {
+                core.warning(`Cannot request Dependabot recreate for PR #${pullNumber}; no command token is available.`);
+                return;
+              }
+
+              await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+                owner,
+                repo,
+                issue_number: pullNumber,
+                body: '@dependabot recreate',
+                headers: {
+                  authorization: `Bearer ${token}`,
+                },
+              });
+              core.notice(`Requested Dependabot recreate for PR #${pullNumber} after updateBranch failed: ${reason}`);
+            }
 
             async function latestBaseSha(pull) {
               if (!baseShaByRef.has(pull.base.ref)) {
@@ -125,6 +147,9 @@ jobs:
               } catch (error) {
                 if (isAlreadyCurrent(error)) {
                   core.info(`PR #${pullSummary.number} is already current with main.`);
+                } else if (shouldAskDependabotToRecreate(error)) {
+                  core.warning(`Could not refresh PR #${pullSummary.number}: ${error.message}`);
+                  await requestDependabotRecreate(pullSummary.number, error.message);
                 } else {
                   core.warning(`Could not refresh PR #${pullSummary.number}: ${error.message}`);
                 }
@@ -134,3 +159,4 @@ jobs:
             }
         env:
           GH_TOKEN: ${{ github.token }}
+          DEPENDABOT_COMMAND_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.RELEASE_PLEASE_TOKEN || github.token }}
