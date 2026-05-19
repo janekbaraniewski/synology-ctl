@@ -47,7 +47,7 @@
         color: var(--text);
         font-family: var(--font);
         font-size: 14px;
-        font-weight: 700;
+        font-weight: 400;
         line-height: 1.18;
         letter-spacing: 0;
       }
@@ -68,19 +68,11 @@
       }
 
       .tmux {
-        display: block;
-        position: relative;
-        width: 100%;
+        display: grid;
+        grid-template-rows: 1.55em 1.55em minmax(0, 1fr) 1.55em;
+        width: 100vw;
         height: 100vh;
-        overflow: hidden;
         background: var(--bg);
-      }
-
-      .session,
-      .pane-tabs,
-      .tour-pane,
-      .tmux-status {
-        display: none !important;
       }
 
       .session,
@@ -104,8 +96,8 @@
 
       .pane-tabs,
       .panes {
-        display: block;
-        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(64em, 68fr) minmax(31em, 32fr);
       }
 
       .pane-tab {
@@ -122,11 +114,9 @@
       }
 
       .panes {
-        position: relative;
-        width: 100%;
-        height: 100%;
         min-height: 0;
-        overflow: hidden;
+        grid-template-columns: minmax(64em, 68fr) minmax(31em, 32fr);
+        min-height: 0;
       }
 
       .left-pane,
@@ -138,32 +128,25 @@
 
       .left-pane {
         display: grid;
-        position: relative;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        grid-template-rows: 1.57em minmax(0, 1fr) 3.42em;
-        font-size: clamp(12px, min(1.244vw, 1.103vh), 28px);
-        line-height: 1.08;
-        transform: none;
+        grid-template-rows: 1.65em minmax(0, 1fr) 3.15em;
         background: var(--pane);
-        border-right: 0;
+        border-right: 1px solid var(--line-hi);
       }
 
       .syno-top {
         display: grid;
-        grid-template-columns: 18.6em minmax(0, 1fr) 17.2em;
+        grid-template-columns: 20em minmax(0, 1fr) 18em;
         align-items: center;
-        padding: 0 0.64em;
+        padding: 0 0.45em;
         color: var(--muted);
         background: var(--bg);
+        font-size: 13px;
         white-space: nowrap;
       }
 
       .syno-body {
         display: grid;
-        grid-template-columns: 13.05em minmax(0, 1fr);
+        grid-template-columns: 15.5em minmax(0, 1fr);
         min-height: 0;
         overflow: hidden;
       }
@@ -171,31 +154,34 @@
       .sidebar {
         min-width: 0;
         overflow: hidden;
-        padding: 0.64em 0.72em 0.42em;
+        padding: 0.5em 0.55em 0.3em;
         border-right: 1px solid var(--line);
+        font-size: 13px;
+        line-height: 1.08;
       }
 
       .section {
-        margin: 0 0 1.11em;
+        margin: 0 0 1.0em;
       }
 
       .section-title {
-        margin-bottom: 0.14em;
+        margin-bottom: 0.18em;
         color: var(--amber);
         font-weight: 900;
+        font-size: 0.98em;
         text-transform: uppercase;
       }
 
       .nav-row {
         display: flex;
         align-items: center;
-        height: 1.11em;
+        height: 1.14em;
         color: var(--text);
         white-space: nowrap;
       }
 
       .marker {
-        width: 1.07em;
+        width: 1.05em;
         color: transparent;
       }
 
@@ -205,11 +191,10 @@
 
       .nav-row.active .marker {
         color: var(--amber);
-        transform: translateX(-0.58em);
       }
 
       .icon {
-        width: 1.72em;
+        width: 1.45em;
         color: var(--text);
       }
 
@@ -234,12 +219,12 @@
         min-width: 0;
         min-height: 0;
         overflow: hidden;
-        padding: 0.57em 0.64em 0.42em;
+        padding: 0.5em 0.8em 0.4em;
       }
 
       .view-main.dashboard-main {
         position: relative;
-        padding: 0.43em 0.57em 0.45em;
+        padding: 0.55em 0.85em 0.6em;
       }
 
       .inspector {
@@ -285,13 +270,17 @@
       }
 
       .dashboard-view {
-        display: block;
-        position: relative;
-        width: 100%;
-        height: 100%;
+        display: grid;
+        grid-template-rows: 2.1em 5.8em 4.6em 4.6em minmax(0, 1fr);
+        gap: 1.0em;
+        width: 1885px;
+        height: 1888px;
         min-width: 0;
         min-height: 0;
         overflow: hidden;
+        transform-origin: top left;
+        font-size: 24px;
+        line-height: 1.15;
       }
 
       .dashboard-view .path,
@@ -302,20 +291,15 @@
 
       .cards {
         display: grid;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 5.72em;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1.14em;
+        gap: 1.15em;
         min-height: 0;
       }
 
       .metric {
         min-width: 0;
         min-height: 0;
-        padding: 0.75em 0.86em 0.68em;
+        padding: 0.62em 0.82em 0.65em;
         border: 1px solid var(--line);
         border-radius: 0.22em;
         background: #111820;
@@ -368,29 +352,11 @@
 
       .panel {
         min-width: 0;
-        padding: 0.5em 0.86em;
+        padding: 0.75em 0.9em;
         border: 1px solid var(--line);
         border-radius: 0.22em;
         background: #111820;
         overflow: hidden;
-      }
-
-      .volumes-panel,
-      .disks-panel,
-      .dash-bottom {
-        position: absolute;
-        left: 0;
-        right: 0;
-      }
-
-      .volumes-panel {
-        top: 8em;
-        height: 4.6em;
-      }
-
-      .disks-panel {
-        top: 13.72em;
-        height: 4.6em;
       }
 
       .volume-row,
@@ -403,7 +369,7 @@
         display: grid;
         align-items: center;
         min-width: 0;
-        min-height: 1.08em;
+        min-height: 1.22em;
         white-space: nowrap;
       }
 
@@ -425,10 +391,8 @@
 
       .dash-bottom {
         display: grid;
-        top: 19.43em;
-        bottom: 0;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 1.14em;
+        gap: 1.05em;
         min-height: 0;
         overflow: hidden;
       }
@@ -438,8 +402,8 @@
       }
 
       .process-row {
-        grid-template-columns: 4.7em 10.2em minmax(0, 1fr) 5.5em;
-        column-gap: 0.55em;
+        grid-template-columns: 5em minmax(0, 1fr) 13em 6em;
+        column-gap: 0.8em;
       }
 
       .activity-row {
@@ -487,9 +451,10 @@
         align-content: end;
         min-width: 0;
         overflow: hidden;
-        padding: 0.36em 0.64em 0.42em;
+        padding: 0.25em 0.5em 0.35em;
         color: var(--muted);
         background: var(--bg);
+        font-size: 13px;
         white-space: nowrap;
       }
 
@@ -497,6 +462,8 @@
         display: grid;
         grid-template-rows: minmax(0, 1fr) 5.6em;
         background: var(--tour);
+        font-size: 13px;
+        line-height: 1.08;
       }
 
       .tour-log {
@@ -514,17 +481,18 @@
       .tour-bottom {
         min-width: 0;
         overflow: hidden;
-        padding: 0.65em 1.05em;
+        padding: 0.5em 0.9em;
         color: var(--muted);
         background: var(--bar2);
         border-top: 1px solid var(--line);
+        font-size: 13px;
         white-space: nowrap;
       }
 
       .tour-tabs {
         display: flex;
-        gap: 0.85em;
-        margin-bottom: 1.0em;
+        gap: 0.7em;
+        margin-bottom: 0.8em;
       }
 
       .tour-tabs button.active {
@@ -544,7 +512,7 @@
       .red { color: var(--red); }
       .muted { color: var(--muted); }
       .faint { color: var(--faint); }
-      .bold { font-weight: 900; }
+      .bold { font-weight: 400; }
       .clip {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -733,20 +701,22 @@
       function renderDashboard() {
         return `
           <div class="dashboard-view">
+            <div class="path"><span>${cls("amber", "overview /")} ${cls("muted", "(dashboard)")}</span><span class="path-line"></span></div>
+
             <div class="cards">
               ${metric("CPU", "26%", 26, "green", cls("blue spark", "▆▆▇▇▆▅▅"))}
-              ${metric("Memory", "60%", 60, "yellow", cls("blue spark", "▆▆▅▅▅▅") + cls("muted", "5.2 GiB · 8.0 GiB"))}
+              ${metric("Memory", "60%", 60, "yellow", cls("blue spark", "▆▆▅▅▅▅"))}
               ${metric("Network", "↓ 7.7 MiB/s", 58, "blue", cls("blue spark", "▃▄▅▆▇▆") + cls("blue", "↑ 739 KiB/s"))}
               ${metric("Disk I/O", "37%", 37, "green", cls("blue spark", "▆▆▅▄▃"))}
             </div>
 
-            <div class="panel volumes-panel">
+            <div class="panel">
               <div class="subhead">Volumes</div>
               ${volume("/volume1", 57, "9.1 TiB / 16 TiB", "normal")}
               ${volume("/volume2", 7.5, "305 GiB / 4.0 TiB", "normal")}
             </div>
 
-            <div class="panel disks-panel">
+            <div class="panel">
               <div class="subhead">Disks</div>
               <div class="disk-grid">
                 ${disk("sda", "WDC WD80EFAX-68LHPN0", "39°C", "normal", "green")}
@@ -1059,11 +1029,14 @@
       }
 
       function scaleApp() {
-        const pane = document.querySelector(".left-pane");
-        if (!pane) return;
-        pane.style.transform = "none";
-        pane.style.left = "0";
-        pane.style.top = "0";
+        const pane = document.querySelector(".view-main");
+        const dashboard = document.querySelector(".dashboard-view");
+        if (!pane || !dashboard) return;
+        const scale = Math.min(
+          pane.clientWidth / dashboard.offsetWidth,
+          pane.clientHeight / dashboard.offsetHeight
+        ) * 0.95;
+        dashboard.style.transform = `scale(${Math.max(0.1, scale)})`;
       }
 
       window.addEventListener("keydown", (event) => {
