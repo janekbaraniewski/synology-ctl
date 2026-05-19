@@ -479,6 +479,7 @@ func (a *App) renderSidebar(width, height int) string {
 	itemIdle := lipgloss.NewStyle().Foreground(t.Text)
 
 	var lines []string
+	activeLine := -1
 	lines = append(lines, "") // breathing room from top bar
 
 	for i, it := range a.flat {
@@ -508,9 +509,15 @@ func (a *App) renderSidebar(width, height int) string {
 			row = ansiClipLeft(row, width)
 		}
 		lines = append(lines, row)
+		if active {
+			activeLine = len(lines) - 1
+		}
 	}
 
 	// Footer: tiny legend so first-timers know what the marker means.
+	if len(lines) > height {
+		lines = windowLines(lines, height, activeLine)
+	}
 	if len(lines) < height-2 {
 		for len(lines) < height-2 {
 			lines = append(lines, "")
@@ -520,6 +527,26 @@ func (a *App) renderSidebar(width, height int) string {
 	}
 	out := strings.Join(lines, "\n")
 	return fitToHeight(out, height)
+}
+
+func windowLines(lines []string, n, focus int) []string {
+	if n <= 0 {
+		return nil
+	}
+	if len(lines) <= n {
+		return lines
+	}
+	if focus < 0 {
+		return lines[:n]
+	}
+	start := focus - n/2
+	if start < 0 {
+		start = 0
+	}
+	if start+n > len(lines) {
+		start = len(lines) - n
+	}
+	return lines[start : start+n]
 }
 
 // fitToHeight pads with blank lines or truncates so the rendered body is

@@ -66,6 +66,9 @@ func (s *Server) handlers() map[string]handlerFn {
 		"SYNO.Core.Package:list":                     s.handlePackages,
 		"SYNO.Core.Package.Server:list":              s.handlePackageCatalog,
 		"SYNO.Core.Package.Uninstallation:uninstall": noopOK,
+		"SYNO.Core.Package.Installation:check":       s.handleInstallCheck,
+		"SYNO.Core.Package.Installation:get_queue":   s.handleInstallQueue,
+		"SYNO.Core.Package.Installation:install":     s.handleInstallPackage,
 		"SYNO.Core.Package.Installation:start":       s.handleInstallStart,
 		"SYNO.Core.Package.Installation:status":      s.handleInstallStatus,
 		"SYNO.Core.Package.Installation:end":         noopOK,
@@ -555,30 +558,83 @@ func (s *Server) handleLogs(_ *Server, form url.Values) any {
 func (s *Server) handlePackages(_ *Server, _ url.Values) any {
 	s.data.mu.Lock()
 	defer s.data.mu.Unlock()
-	pkgs := make([]map[string]any, 0, len(demoPackages))
+	pkgs := make([]map[string]any, 0, len(demoPackages)+len(s.data.pkgExtra))
+	seen := map[string]bool{}
 	for _, p := range demoPackages {
-		status := s.data.pkgState[p["id"].(string)]
-		if status == "" {
-			status = "running"
+		id := p["id"].(string)
+		seen[id] = true
+		pkgs = append(pkgs, s.demoPackageRow(p))
+	}
+	for id, p := range s.data.pkgExtra {
+		if seen[id] {
+			continue
 		}
-		c := map[string]any{}
-		for k, v := range p {
-			c[k] = v
-		}
-		c["additional"] = map[string]any{
-			"status":        status,
-			"maintainer":    p["maintainer"],
-			"description":   p["description"],
-			"beta":          p["beta"] == true,
-			"ctl_uninstall": p["ctl_uninstall"],
-		}
-		pkgs = append(pkgs, c)
+		pkgs = append(pkgs, s.demoPackageRow(p))
 	}
 	return map[string]any{"packages": pkgs, "total": len(pkgs)}
 }
 
 func (s *Server) handlePackageCatalog(_ *Server, _ url.Values) any {
 	return map[string]any{"packages": demoCatalog, "total": len(demoCatalog)}
+}
+
+func (s *Server) handleInstallCheck(_ *Server, _ url.Values) any {
+	return map[string]any{
+		"is_occupied": false,
+		"volume_list": []map[string]any{
+			{"mount_point": "/volume1", "desc": "Volume 1"},
+		},
+	}
+}
+
+func (s *Server) handleInstallQueue(_ *Server, form url.Values) any {
+	var req []struct {
+		Pkg  string `json:"pkg"`
+		Beta bool   `json:"beta"`
+	}
+	_ = json.Unmarshal([]byte(form.Get("pkgs")), &req)
+	queue := make([]map[string]any, 0, len(req))
+	for _, p := range req {
+		if p.Pkg == "" {
+			continue
+		}
+		queue = append(queue, map[string]any{"pkg": p.Pkg, "beta": p.Beta, "volume": ""})
+	}
+	return map[string]any{
+		"queue":              queue,
+		"broken_pkgs":        []string{},
+		"cause_pausing_pkgs": []string{},
+		"conflicted_pkgs":    []string{},
+		"non_exist_pkgs":     []string{},
+		"paused_pkgs":        []string{},
+		"replaced_pkgs":      []string{},
+	}
+}
+
+func (s *Server) handleInstallPackage(_ *Server, form url.Values) any {
+	id := firstNonEmpty(form.Get("name"), form.Get("id"))
+	if id == "" {
+		return map[string]any{"progress": -1, "error": "missing package name"}
+	}
+	row := demoCatalogPackage(id)
+	if row == nil {
+		row = map[string]any{"id": id, "package": id, "name": id, "version": "", "maintainer": "Synology Inc.", "desc": ""}
+	}
+	installed := map[string]any{
+		"id":            firstNonEmpty(stringValue(row, "id"), stringValue(row, "package")),
+		"name":          firstNonEmpty(stringValue(row, "name"), id),
+		"version":       stringValue(row, "version"),
+		"maintainer":    stringValue(row, "maintainer"),
+		"description":   firstNonEmpty(stringValue(row, "description"), stringValue(row, "desc")),
+		"beta":          boolValue(row, "beta"),
+		"ctl_uninstall": true,
+		"timestamp":     time.Now().UnixMilli(),
+	}
+	s.data.mu.Lock()
+	s.data.pkgExtra[id] = installed
+	s.data.pkgState[id] = "running"
+	s.data.mu.Unlock()
+	return map[string]any{"progress": 1}
 }
 
 func (s *Server) handleInstallStart(_ *Server, _ url.Values) any {
@@ -597,6 +653,53 @@ func (s *Server) handlePkgControl(newState string) handlerFn {
 		s.data.mu.Unlock()
 		return map[string]any{}
 	}
+}
+
+func (s *Server) demoPackageRow(p map[string]any) map[string]any {
+	id := stringValue(p, "id")
+	status := s.data.pkgState[id]
+	if status == "" {
+		status = "running"
+	}
+	c := map[string]any{}
+	for k, v := range p {
+		c[k] = v
+	}
+	c["additional"] = map[string]any{
+		"status":        status,
+		"maintainer":    p["maintainer"],
+		"description":   firstNonEmpty(stringValue(p, "description"), stringValue(p, "desc")),
+		"beta":          boolValue(p, "beta"),
+		"ctl_uninstall": p["ctl_uninstall"],
+	}
+	return c
+}
+
+func demoCatalogPackage(id string) map[string]any {
+	for _, p := range demoCatalog {
+		if stringValue(p, "id") == id || stringValue(p, "package") == id {
+			c := map[string]any{}
+			for k, v := range p {
+				c[k] = v
+			}
+			return c
+		}
+	}
+	return nil
+}
+
+func stringValue(m map[string]any, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func boolValue(m map[string]any, key string) bool {
+	if v, ok := m[key].(bool); ok {
+		return v
+	}
+	return false
 }
 
 func (s *Server) handleServices(_ *Server, _ url.Values) any {

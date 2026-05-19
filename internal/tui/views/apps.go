@@ -192,15 +192,16 @@ func (a *Apps) fetchCatalog() tea.Cmd {
 // flight so the rendered "Xs elapsed" counter actually advances.
 type appsCatalogTick struct{}
 
-func (a *Apps) installCmd(id string) tea.Cmd {
+func (a *Apps) installCmd(pkg dsm.ServerPackage) tea.Cmd {
 	c := a.ctx.Client
 	if c == nil {
 		return nil
 	}
+	id := pkg.Identifier()
 	a.installing[id] = true
 	return tui.Fetch(15*time.Minute,
 		func(ctx context.Context) (struct{}, error) {
-			return struct{}{}, c.PackageInstall(ctx, id, dsm.InstallOpts{
+			return struct{}{}, c.PackageInstall(ctx, pkg, a.available, dsm.InstallOpts{
 				CheckCodesign: true,
 				CheckDsm:      true,
 			})
@@ -295,8 +296,13 @@ func (a *Apps) Update(msg tea.Msg) (tui.View, tea.Cmd) {
 			)
 		}
 		if rest, ok := strings.CutPrefix(m.Token, "install:"); ok {
+			pkg, ok := a.availableByID(rest)
+			if !ok {
+				a.flash = "install " + rest + " failed: package metadata is no longer loaded"
+				return a, nil
+			}
 			a.flash = "installing " + rest + " — this can take a few minutes…"
-			return a, a.installCmd(rest)
+			return a, a.installCmd(pkg)
 		}
 	case CancelledMsg:
 		a.flash = "cancelled"
@@ -480,6 +486,15 @@ func (a *Apps) handleAction(k string) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+func (a *Apps) availableByID(id string) (dsm.ServerPackage, bool) {
+	for _, p := range a.available {
+		if p.Identifier() == id {
+			return p, true
+		}
+	}
+	return dsm.ServerPackage{}, false
 }
 
 // — render —

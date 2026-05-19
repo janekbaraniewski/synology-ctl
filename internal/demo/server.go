@@ -137,6 +137,7 @@ type state struct {
 	snapshots map[string][]snapshot // share -> snapshots
 	services  map[string]string     // service id -> state (enabled / disabled / always-on)
 	pkgState  map[string]string     // package id -> running / stop
+	pkgExtra  map[string]map[string]any
 
 	// taskID counter for DirSize.start / .status pair.
 	dirSizeTasks map[string]dirSizeTask
@@ -150,6 +151,7 @@ func newState() *state {
 		snapshots:    make(map[string][]snapshot),
 		services:     make(map[string]string),
 		pkgState:     make(map[string]string),
+		pkgExtra:     make(map[string]map[string]any),
 		dirSizeTasks: make(map[string]dirSizeTask),
 		startedAt:    time.Now(),
 	}

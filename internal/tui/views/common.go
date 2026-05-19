@@ -3,6 +3,7 @@
 package views
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -185,15 +186,37 @@ func errLine(t tui.Theme, err error) string {
 	return lipgloss.NewStyle().Foreground(t.Error).Render("  " + err.Error())
 }
 
+var ansiEscapeRE = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+
 // fitOrScroll trims output to at most `n` lines, padding short output to
-// fill. Used by list views whose composed sections might exceed the
-// allocated body height.
+// fill. If a selected list row is present, the returned window follows it
+// instead of blindly truncating from the top.
 func fitOrScroll(s string, n int) string {
 	lines := strings.Split(s, "\n")
 	if len(lines) <= n {
 		return s + strings.Repeat("\n", n-len(lines))
 	}
-	return strings.Join(lines[:n], "\n")
+	start := 0
+	if selected := selectedLine(lines); selected >= n {
+		start = selected - n + 3
+		if start < 0 {
+			start = 0
+		}
+		if start+n > len(lines) {
+			start = len(lines) - n
+		}
+	}
+	return strings.Join(lines[start:start+n], "\n")
+}
+
+func selectedLine(lines []string) int {
+	for i, line := range lines {
+		clean := strings.TrimLeft(ansiEscapeRE.ReplaceAllString(line, ""), " ")
+		if strings.HasPrefix(clean, "▸") {
+			return i
+		}
+	}
+	return -1
 }
 
 // sectionHeader renders a "Title (n) ───────" header used by list views.

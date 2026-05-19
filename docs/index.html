@@ -4,27 +4,30 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <meta name="theme-color" content="#111820">
+    <meta name="theme-color" content="#0d1117">
     <meta name="description" content="synoctl is a keyboard-first terminal control room for Synology DSM.">
     <title>synoctl</title>
     <link rel="icon" href="data:,">
     <style>
       :root {
-        --bg: #111820;
-        --pane: #111820;
-        --tour: #030506;
-        --bar: #151d27;
-        --bar2: #0b1016;
-        --inspect: #151d2a;
-        --line: #2a3546;
-        --text: #dbe1ea;
-        --muted: #909bad;
-        --faint: #687386;
-        --amber: #ffa70a;
-        --blue: #48b9ef;
-        --green: #66cc72;
-        --red: #ef5f6c;
-        --yellow: #f4c760;
+        --bg: #0d1117;
+        --bar: #151b24;
+        --bar2: #0a0e14;
+        --pane: #0f151d;
+        --tour: #020405;
+        --inspect: #151c29;
+        --line: #2a3445;
+        --line-hi: #46546a;
+        --text: #e6e9ef;
+        --muted: #8b94a7;
+        --faint: #555f72;
+        --amber: #f0a020;
+        --blue: #5dade2;
+        --green: #6fb86f;
+        --yellow: #f0c674;
+        --red: #e26a6a;
+        --ink: #071018;
+        --font: Menlo, Monaco, Consolas, "Liberation Mono", ui-monospace, monospace;
       }
 
       * {
@@ -42,112 +45,17 @@
 
       body {
         color: var(--text);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-family: var(--font);
+        font-size: clamp(11px, min(0.66vw, 1.18vh), 15px);
+        font-weight: 700;
+        line-height: 1.18;
         letter-spacing: 0;
-      }
-
-      .terminal {
-        display: grid;
-        grid-template-rows: 2.1em minmax(0, 1fr) 2.1em;
-        width: 100vw;
-        height: 100vh;
-        font-size: clamp(9px, min(0.58vw, 1.36vh), 14px);
-        line-height: 1.08;
-        background: var(--bg);
-      }
-
-      .top,
-      .status,
-      .title {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        min-width: 0;
-        overflow: hidden;
-        padding: 0 0.7em;
-        color: var(--muted);
-        background: var(--bar);
-        border-bottom: 1px solid var(--line);
-        white-space: nowrap;
-      }
-
-      .status {
-        border-top: 1px solid var(--line);
-        border-bottom: 0;
-      }
-
-      .main {
-        display: grid;
-        grid-template-columns: minmax(84ch, 1.9fr) minmax(44ch, 0.9fr);
-        min-height: 0;
-      }
-
-      .pane {
-        display: grid;
-        grid-template-rows: 1.8em minmax(0, 1fr);
-        min-width: 0;
-        min-height: 0;
-        overflow: hidden;
-        background: var(--pane);
-      }
-
-      .pane + .pane {
-        border-left: 1px solid var(--line);
-        background: var(--tour);
-      }
-
-      .title {
-        height: 1.8em;
-        background: var(--bar2);
-      }
-
-      .content {
-        min-width: 0;
-        min-height: 0;
-        overflow: hidden;
-        position: relative;
-      }
-
-      pre {
-        margin: 0;
-        padding: 0.35em 0.7em;
-        font: inherit;
-        font-weight: 520;
-        white-space: pre;
-        tab-size: 2;
-      }
-
-      #app {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-      }
-
-      #tour {
-        position: absolute;
-        inset: 0 0 5.2em;
-        overflow: hidden;
-        background: var(--tour);
-      }
-
-      .tour-controls {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        height: 5.2em;
-        padding: 0.65em 0.8em;
-        color: var(--muted);
-        background: var(--bar2);
-        border-top: 1px solid var(--line);
-        white-space: nowrap;
       }
 
       button,
       a {
         color: inherit;
         font: inherit;
-        font-weight: 700;
         letter-spacing: 0;
         text-decoration: none;
         background: none;
@@ -159,29 +67,454 @@
         cursor: pointer;
       }
 
-      button[data-active="true"] {
-        color: #071018;
+      .tmux {
+        display: grid;
+        grid-template-rows: 1.55em 1.55em minmax(0, 1fr) 1.55em;
+        width: 100vw;
+        height: 100vh;
+        background: var(--bg);
+      }
+
+      .session,
+      .pane-tabs,
+      .tmux-status {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        background: var(--bar);
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+      }
+
+      .session,
+      .tmux-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0.5em;
+      }
+
+      .pane-tabs,
+      .panes {
+        display: grid;
+        grid-template-columns: minmax(64em, 68fr) minmax(31em, 32fr);
+      }
+
+      .pane-tab {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 0;
+        padding: 0 0.45em;
+        border-right: 1px solid var(--line);
+      }
+
+      .pane-tab:last-child {
+        border-right: 0;
+      }
+
+      .panes {
+        min-height: 0;
+      }
+
+      .left-pane,
+      .tour-pane {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .left-pane {
+        display: grid;
+        grid-template-rows: 1.65em minmax(0, 1fr) 3.15em;
+        background: var(--pane);
+        border-right: 1px solid var(--line-hi);
+      }
+
+      .syno-top {
+        display: grid;
+        grid-template-columns: 20em minmax(0, 1fr) 18em;
+        align-items: center;
+        padding: 0 0.45em;
+        color: var(--muted);
+        background: var(--bg);
+        white-space: nowrap;
+      }
+
+      .syno-body {
+        display: grid;
+        grid-template-columns: 15.5em minmax(0, 1fr);
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        min-width: 0;
+        overflow: hidden;
+        padding: 0.5em 0.55em 0.3em;
+        border-right: 1px solid var(--line);
+      }
+
+      .section {
+        margin: 0 0 1.0em;
+      }
+
+      .section-title {
+        margin-bottom: 0.18em;
+        color: var(--amber);
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .nav-row {
+        display: flex;
+        align-items: center;
+        height: 1.18em;
+        color: var(--text);
+        white-space: nowrap;
+      }
+
+      .marker {
+        width: 1.05em;
+        color: transparent;
+      }
+
+      .nav-row.active {
+        color: var(--amber);
+      }
+
+      .nav-row.active .marker {
+        color: var(--amber);
+      }
+
+      .icon {
+        width: 1.45em;
+        color: var(--text);
+      }
+
+      .nav-row.active .icon,
+      .nav-row.active .label {
+        color: var(--amber);
+      }
+
+      .view-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .view-shell.with-inspector {
+        grid-template-columns: minmax(0, 1fr) 18em;
+      }
+
+      .view-main {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0.5em 0.8em 0.4em;
+      }
+
+      .view-main.dashboard-main {
+        position: relative;
+        padding: 0.55em 0.85em 0.6em;
+      }
+
+      .inspector {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0.55em 0.8em;
+        color: var(--text);
+        background: var(--inspect);
+        border-left: 1px solid var(--line);
+      }
+
+      .path {
+        display: flex;
+        align-items: baseline;
+        min-width: 0;
+        margin: 0 0 0.8em;
+        white-space: nowrap;
+      }
+
+      .path-line {
+        flex: 1 1 auto;
+        height: 1px;
+        margin-left: 1em;
+        background: var(--line-hi);
+      }
+
+      .subhead {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        margin-bottom: 0.55em;
+        color: var(--amber);
+        white-space: nowrap;
+      }
+
+      .subhead::after {
+        content: "";
+        flex: 1 1 auto;
+        height: 1px;
+        margin-left: 1.1em;
+        background: color-mix(in srgb, var(--amber), transparent 45%);
+      }
+
+      .dashboard-view {
+        display: grid;
+        grid-template-rows: 2.1em 5.8em 4.6em 4.6em minmax(0, 1fr);
+        gap: 1.0em;
+        width: 1885px;
+        height: 1888px;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        transform-origin: top left;
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      .dashboard-view .path,
+      .dashboard-view .panel,
+      .dashboard-view .cards {
+        margin: 0;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1.15em;
+        min-height: 0;
+      }
+
+      .metric {
+        min-width: 0;
+        min-height: 0;
+        padding: 0.62em 0.82em 0.65em;
+        border: 1px solid var(--line);
+        border-radius: 0.22em;
+        background: #111820;
+      }
+
+      .metric-title {
+        color: var(--amber);
+      }
+
+      .metric-value {
+        margin-bottom: 0.28em;
+        color: var(--amber);
+      }
+
+      .metric-detail {
+        margin-top: 0.22em;
+        color: var(--blue);
+      }
+
+      .meter {
+        display: flex;
+        width: 100%;
+        height: 1.12em;
+        min-width: 0;
+      }
+
+      .spark {
+        display: block;
+        height: 1.32em;
+        margin-top: 0.35em;
+        color: var(--blue);
+        overflow: hidden;
+        white-space: pre;
+      }
+
+      .fill {
+        display: block;
+      }
+
+      .empty {
+        flex: 1 1 auto;
+        background-image: radial-gradient(var(--faint) 37%, transparent 39%);
+        background-size: 4px 4px;
+      }
+
+      .fill.green { background: var(--green); }
+      .fill.yellow { background: var(--yellow); }
+      .fill.blue { background: var(--blue); }
+      .fill.red { background: var(--red); }
+
+      .panel {
+        min-width: 0;
+        padding: 0.75em 0.9em;
+        border: 1px solid var(--line);
+        border-radius: 0.22em;
+        background: #111820;
+        overflow: hidden;
+      }
+
+      .volume-row,
+      .disk-row,
+      .process-row,
+      .activity-row,
+      .package-row,
+      .container-row,
+      .tree-row {
+        display: grid;
+        align-items: center;
+        min-width: 0;
+        min-height: 1.22em;
+        white-space: nowrap;
+      }
+
+      .volume-row {
+        grid-template-columns: 12em minmax(10em, 1fr) 5.4em 15em 6em;
+        column-gap: 1em;
+      }
+
+      .disk-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.25em 3em;
+      }
+
+      .disk-row {
+        grid-template-columns: 3em minmax(0, 1fr) 4.4em 6em;
+        column-gap: 0.65em;
+      }
+
+      .dash-bottom {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1.05em;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .dash-bottom .panel {
+        min-height: 0;
+      }
+
+      .process-row {
+        grid-template-columns: 5em minmax(0, 1fr) 13em 6em;
+        column-gap: 0.8em;
+      }
+
+      .activity-row {
+        grid-template-columns: 1.3em 10.5em minmax(0, 1fr);
+        column-gap: 0.55em;
+      }
+
+      .package-tabs,
+      .container-tabs {
+        display: flex;
+        gap: 2.4em;
+        padding-bottom: 0.55em;
+        margin-bottom: 1em;
+        border-bottom: 1px solid var(--line-hi);
+        white-space: nowrap;
+      }
+
+      .package-row {
+        grid-template-columns: minmax(14em, 2.1fr) 12em minmax(12em, 1fr) 6em;
+        column-gap: 1.0em;
+      }
+
+      .container-row {
+        grid-template-columns: 13em minmax(20em, 1fr) 7em 7em;
+        column-gap: 1em;
+      }
+
+      .tree {
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .tree-row {
+        grid-template-columns: minmax(30em, 1fr) 8em 17em 11em 13em;
+        column-gap: 1em;
+      }
+
+      .indent-1 { padding-left: 1.5em; }
+      .indent-2 { padding-left: 3.0em; }
+      .indent-3 { padding-left: 4.5em; }
+
+      .syno-actions {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        align-content: end;
+        min-width: 0;
+        overflow: hidden;
+        padding: 0.25em 0.5em 0.35em;
+        color: var(--muted);
+        background: var(--bg);
+        white-space: nowrap;
+      }
+
+      .tour-pane {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) 5.6em;
+        background: var(--tour);
+      }
+
+      .tour-log {
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        padding: 0.75em 1.05em;
+        white-space: pre-wrap;
+      }
+
+      .tour-line {
+        min-height: 1.18em;
+      }
+
+      .tour-bottom {
+        min-width: 0;
+        overflow: hidden;
+        padding: 0.65em 1.05em;
+        color: var(--muted);
+        background: var(--bar2);
+        border-top: 1px solid var(--line);
+        white-space: nowrap;
+      }
+
+      .tour-tabs {
+        display: flex;
+        gap: 0.85em;
+        margin-bottom: 1.0em;
+      }
+
+      .tour-tabs button.active {
+        color: var(--ink);
         background: var(--blue);
       }
 
-      .fg { color: var(--text); }
-      .dim { color: var(--muted); }
-      .faint { color: var(--faint); }
-      .amber { color: var(--amber); font-weight: 760; }
-      .blue { color: var(--blue); font-weight: 720; }
-      .green { color: var(--green); font-weight: 720; }
-      .red { color: var(--red); font-weight: 720; }
-      .yellow { color: var(--yellow); font-weight: 720; }
-      .bold { font-weight: 780; }
-      .inspect { background: var(--inspect); }
-      .cursor { background: var(--text); color: var(--text); }
+      .tmux-status {
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+      }
 
-      @media (max-width: 1000px) {
+      .amber { color: var(--amber); }
+      .blue { color: var(--blue); }
+      .green { color: var(--green); }
+      .yellow { color: var(--yellow); }
+      .red { color: var(--red); }
+      .muted { color: var(--muted); }
+      .faint { color: var(--faint); }
+      .bold { font-weight: 900; }
+      .clip {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 1180px) {
         body {
           overflow: auto;
         }
 
-        .terminal {
+        .tmux {
           min-width: 1180px;
           min-height: 760px;
         }
@@ -189,360 +522,494 @@
     </style>
   </head>
   <body>
-    <div class="terminal">
-      <div class="top">
-        <span><span class="fg bold">jan@macbook</span> ~/Workspace/synoctl <span class="green">*</span> tmux attach -t synoctl-site</span>
+    <div class="tmux">
+      <header class="session">
+        <span><span class="bold">jan@macbook</span> ~/Workspace/synoctl <span class="green">*</span> tmux attach -t synoctl-site</span>
         <span>github.com/janekbaraniewski/synoctl</span>
+      </header>
+
+      <div class="pane-tabs">
+        <div class="pane-tab"><span class="bold">0:synoctl</span><span id="left-title">0:synoctl - dashboard</span></div>
+        <div class="pane-tab"><span class="bold">1:tour</span><span id="tour-count">1/4</span></div>
       </div>
 
-      <main class="main">
-        <section class="pane">
-          <div class="title">
-            <span class="fg bold">0:synoctl</span>
-            <span id="app-title">dashboard</span>
+      <main class="panes">
+        <section class="left-pane">
+          <div class="syno-top">
+            <div><span class="amber">◣</span> <span class="bold">synoctl</span> <span class="green"> • </span> 127.0.0.1:60989</div>
+            <div class="muted" style="text-align:center">DSM 7.2.2-72806 Update 3</div>
+            <div class="muted" style="text-align:right">up 169d 00h&nbsp;&nbsp;01:03</div>
           </div>
-          <div class="content">
-            <pre id="app" aria-label="synoctl replica"></pre>
+
+          <div class="syno-body">
+            <aside class="sidebar" id="sidebar"></aside>
+            <section class="view-shell" id="view-shell">
+              <div class="view-main" id="view-main"></div>
+            </section>
           </div>
+
+          <footer class="syno-actions">
+            <div class="faint">tab · view&nbsp;&nbsp;&nbsp;} · sect</div>
+            <div><span id="frame-actions"></span><span style="float:right">⇥ nav&nbsp;&nbsp; : cmd&nbsp;&nbsp; ? help&nbsp;&nbsp; q quit</span></div>
+          </footer>
         </section>
 
-        <section class="pane">
-          <div class="title">
-            <span class="fg bold">1:tour</span>
-            <span id="count">1/4</span>
-          </div>
-          <div class="content">
-            <pre id="tour" aria-label="tour output"></pre>
-            <div class="tour-controls">
-              <div>
-                <button data-frame="0">[1] dashboard</button>  <button data-frame="1">[2] files</button>  <button data-frame="2">[3] apps</button>  <button data-frame="3">[4] containers</button>
-              </div>
-              <div style="margin-top:1.2em">
-                <a href="https://github.com/janekbaraniewski/synoctl#install">$ brew install synoctl</a>  <span class="faint">|</span>  <a href="https://github.com/janekbaraniewski/synoctl">$ git clone</a>  <span class="faint">|</span>  <a href="https://github.com/janekbaraniewski/synoctl/releases">$ releases</a>
-              </div>
+        <section class="tour-pane">
+          <div class="tour-log" id="tour-log"></div>
+          <footer class="tour-bottom">
+            <div class="tour-tabs" id="tour-tabs"></div>
+            <div>
+              <a href="https://github.com/janekbaraniewski/synoctl#install">$ brew install synoctl</a>
+              <span class="faint">&nbsp;|&nbsp;</span>
+              <a href="https://github.com/janekbaraniewski/synoctl">$ git clone</a>
+              <span class="faint">&nbsp;|&nbsp;</span>
+              <a href="https://github.com/janekbaraniewski/synoctl/releases">$ releases</a>
             </div>
-          </div>
+          </footer>
         </section>
       </main>
 
-      <div class="status">
-        <span>[0] synoctl  [1] tour  |  ctrl-b ? help</span>
-        <span>tab nav | / filter | enter details | : command | q quit</span>
-      </div>
+      <footer class="tmux-status">
+        <span>[0] synoctl&nbsp;&nbsp;[1] tour&nbsp;&nbsp;|&nbsp;&nbsp;ctrl-b ? help</span>
+        <span>tab nav&nbsp;&nbsp;|&nbsp;&nbsp;/ filter&nbsp;&nbsp;|&nbsp;&nbsp;enter details&nbsp;&nbsp;|&nbsp;&nbsp;: command&nbsp;&nbsp;|&nbsp;&nbsp;q quit</span>
+      </footer>
     </div>
 
     <script>
-      const app = document.getElementById("app");
-      const tour = document.getElementById("tour");
-      const title = document.getElementById("app-title");
-      const count = document.getElementById("count");
-      const buttons = [...document.querySelectorAll("[data-frame]")];
-      let active = 0;
-      let history = [];
-      let timer = 0;
-
-      function esc(value) {
-        return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-      }
-
-      function span(cls, value) {
-        return `<span class="${cls}">${esc(value)}</span>`;
-      }
-
-      function line(parts = [["fg", ""]]) {
-        return parts.map(([cls, value]) => span(cls, value)).join("");
-      }
-
-      const commonLeft = [
-        line([["amber", "▸"], ["fg bold", " synoctl"], ["green", "   •"], ["fg", "  127.0.0.1:60989"], ["dim", "                                      DSM 7.2.2-72806 Update 3"], ["dim", "        up 169d 00h  01:03"]]),
-        line(),
-        line([["amber", "OVERVIEW"]]),
-        line([["fg", "  ◆  Dashboard"]]),
-        line([["fg", "  ▤  Resource Monitor"]]),
-        line(),
-        line([["amber", "STORAGE"]]),
-        line([["fg", "  ▮  Volumes"]]),
-        line([["fg", "  ●  Disks"]]),
-        line([["fg", "  ▦  Shares & Files"]]),
-        line([["fg", "  ⊞  Quotas"]]),
-        line([["fg", "  ⇆  iSCSI"]]),
-        line(),
-        line([["amber", "APPS"]]),
-        line([["fg", "  ▣  Apps"]]),
-        line([["fg", "  ▦  Containers"]]),
-        line([["fg", "  ▩  Virtual Machines"]]),
-        line(),
-        line([["amber", "BACKUP"]]),
-        line([["fg", "  ▰  Hyper Backup"]]),
-        line([["fg", "  ⬇  Active Backup"]]),
-        line([["fg", "  ☁  Cloud Sync"]]),
-        line(),
-        line([["amber", "SERVICES"]]),
-        line([["fg", "  ⌘  Drive"]]),
-        line([["fg", "  ◎  Cameras"]]),
-        line(),
-        line([["amber", "SECURITY"]]),
-        line([["fg", "  ♧  Certificates"]]),
-        line([["fg", "  ⚐  Security"]]),
-        line([["fg", "  ▤  Firewall"]]),
-        line(),
-        line([["amber", "SYSTEM"]]),
-        line([["fg", "  ⌂  Admin"]]),
-        line([["fg", "  ◷  Scheduled Tasks"]]),
-        line([["fg", "  ⌬  DDNS"]]),
-        line([["fg", "  ✉  Notifications"]]),
-        line(),
-        line([["amber", "SETTINGS"]]),
-        line([["fg", "  ↟  DSM Update"]]),
-        line([["fg", "  ◉  Time & Region"]]),
-        line([["fg", "  ◖  Power & Schedule"]]),
-        line([["fg", "  ⇄  External Access"]]),
-        line(),
-        line([["amber", "TOOLS"]]),
-        line([["fg", "  ⚙  API Explorer"]])
+      const sections = [
+        ["Overview", [["◆", "Dashboard"], ["▤", "Resource Monitor"]]],
+        ["Storage", [["▮", "Storage Health"], ["▦", "Shares & Files"], ["⇆", "iSCSI"]]],
+        ["Apps", [["▣", "Apps"], ["▦", "Containers"], ["▩", "Virtual Machines"]]],
+        ["Backup", [["▰", "Hyper Backup"], ["⬇", "Active Backup"], ["☁", "Cloud Sync"]]],
+        ["Services", [["⌘", "Drive"], ["◎", "Cameras"]]],
+        ["Security", [["⛨", "Certificates"], ["⚐", "Security"], ["▤", "Firewall"]]],
+        ["System", [["⌂", "Admin"], ["⊞", "Quotas"], ["◷", "Scheduled Tasks"], ["⌬", "DDNS"], ["✉", "Notifications"]]],
+        ["Settings", [["↟", "DSM Update"], ["◉", "Time & Region"], ["⏻", "Power & Schedule"], ["⇄", "External Access"]]],
+        ["Tools", [["⚙", "API Explorer"]]]
       ];
-
-      function leftWithActive(activeLabel) {
-        return commonLeft.map((html) => {
-          if (!html.includes(`  ${activeLabel}`)) return html;
-          return html.replace("fg", "amber").replace(`  ${activeLabel}`, `▌ ${activeLabel}`);
-        });
-      }
 
       const frames = [
         {
-          title: "0:synoctl - dashboard",
+          id: "dashboard",
+          label: "dashboard",
+          leftTitle: "0:synoctl - dashboard",
           active: "Dashboard",
-          footer: "tab view · } sect · ↵ details · / filter · r refresh",
-          lines: [
-            ...leftWithActive("Dashboard").map((value, i) => [i, 0, value]),
-            [4, 33, line([["amber", "overview /"], ["dim", " (dashboard)"], ["dim", "  ─────────────────────────────────────────────────────────────"]])],
-            [7, 33, line([["amber", "CPU"], ["fg", "                                      "], ["amber", "Memory"], ["fg", "                                "], ["amber", "Network"], ["fg", "                         "], ["amber", "Disk I/O"]])],
-            [8, 33, line([["amber", "26%"], ["fg", "                                      "], ["amber", "60%"], ["fg", "                                   "], ["green", "↓ 7.7 MiB/s"], ["fg", "                    "], ["amber", "37%"]])],
-            [10, 33, line([["green", "████████"], ["faint", "░░░░░░░░░░░░░░░░░░░"], ["fg", "               "], ["yellow", "████████████"], ["faint", "░░░░░░░░░░░░"], ["fg", "           "], ["blue", "█████████"], ["faint", "░░░░░░░░░░░"], ["fg", "        "], ["green", "████████"], ["faint", "░░░░░░░░░░░░░░"]])],
-            [12, 33, line([["blue", "█████████"], ["fg", "                                  "], ["blue", "████████"], ["fg", "                         "], ["blue", "████████"]])],
-            [17, 33, line([["amber", "Volumes"]])],
-            [19, 35, line([["fg bold", "/volume1"], ["fg", "          "], ["green", "██████████████████████████████████"], ["faint", "░░░░░░░░░░░░░░░░░░░░░░"], ["fg bold", " 57.0%"], ["dim", "       9.1 TiB / 16 TiB"], ["green", "    normal"]])],
-            [21, 35, line([["fg", "/volume2"], ["fg", "          "], ["green", "████"], ["faint", "░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░"], ["fg bold", " 7.5%"], ["dim", "        305 GiB / 4.0 TiB"], ["green", "   normal"]])],
-            [26, 33, line([["amber", "Disks"]])],
-            [28, 35, line([["fg", "sda WDC WD80EFAX-68LHPN0  "], ["green", "39°C  normal"], ["fg", "         sdb WDC WD80EFAX-68LHPN0  "], ["yellow", "41°C"], ["green", "  normal"]])],
-            [30, 35, line([["dim", "sdc Seagate ST4000VN006-3CW104  "], ["green", "36°C  normal"], ["fg", "      sdd Samsung SSD 870 EVO 1TB  "], ["green", "31°C  normal"]])],
-            [35, 33, line([["amber", "Top processes (by CPU)"], ["fg", "                                                     "], ["amber", "Recent activity"]])],
-            [37, 33, line([["dim", "PID      COMMAND                         CPU                         MEM"], ["fg", "        "], ["blue", "•"], ["dim", " 2026-05-19 00:47…  checksum mismatch…"]])],
-            [39, 33, line([["fg", "11242    plex_media_server               "], ["red", "████████████"], ["faint", "░░░░"], ["amber", "        403 MiB"], ["fg", "     "], ["yellow", "⚠"], ["dim", " 2026-05-19 00:30…  sdc reallocated sector"]])],
-            [40, 33, line([["fg", "11242    ffmpeg-transcoder               "], ["yellow", "████████"], ["faint", "░░░░░░░░"], ["amber", "        219 MiB"], ["fg", "     "], ["blue", "•"], ["dim", " 2026-05-19 00:02…  Service started"]])],
-            [41, 33, line([["fg", "1182     synoindexd                      "], ["green", "██████"], ["faint", "░░░░░░░░░░"], ["amber", "         86 MiB"], ["fg", "     "], ["blue", "•"], ["dim", " 2026-05-18 23:32…  Daily homes backup"]])],
-            [42, 33, line([["fg", "11243    plex_transcoder                 "], ["green", "█████"], ["faint", "░░░░░░░░░░░"], ["amber", "        180 MiB"]])],
-            [43, 33, line([["fg", "2310     syno-photos-index…              "], ["green", "████"], ["faint", "░░░░░░░░░░░░"], ["amber", "        153 MiB"]])],
-            [44, 33, line([["fg", "9988     synoaicore                      "], ["green", "███"], ["faint", "░░░░░░░░░░░░░"], ["amber", "        403 MiB"]])],
-            [60, 2, line([["faint", "tab · view   } · sect"]])],
-            [62, 2, line([["faint", ": · cmd   ? · help"]])]
-          ],
+          inspector: false,
+          actions: "tab view · } sect · ↵ details · / filter · r refresh",
+          render: renderDashboard,
           tour: [
-            ["cmd", "$ synoctl"],
-            ["dim", "discover: mdns, subnet, tailscale peers"],
+            ["green", "$ synoctl"],
+            ["muted", "discover: mdns, subnet, tailscale peers"],
             ["blue", "found: 192.168.1.36:5000  DSM 7.0.1-42218"],
             ["blue", "auth: keychain profile unlocked"],
-            ["dim", "render: dashboard"],
-            ["cmd", "$ synoctl :dashboard"],
-            ["fg", "The first screen is operational, not a hero section."],
+            ["muted", "render: dashboard"],
+            ["green", "$ synoctl :dashboard"],
+            ["", "The first screen is operational, not a hero section."],
             ["blue", "CPU, memory, network, disk I/O, volumes, disks."],
             ["blue", "Top processes and DSM activity stay visible at once."]
           ]
         },
         {
-          title: "0:synoctl - files",
+          id: "files",
+          label: "files",
+          leftTitle: "0:synoctl - files",
           active: "Shares & Files",
-          footer: "↵ expand/open · ⌫ collapse · S snapshots · i share details · o open · W download · D delete · R re-size",
-          lines: [
-            ...leftWithActive("Shares & Files").map((value, i) => [i, 0, value]),
-            [4, 33, line([["amber", "storage /"], ["dim", " (shares, files, usage)"], ["dim", "  ─────────────────────────────────────────────────────────"]])],
-            [6, 33, line([["amber", "Shared folders, files, usage"], ["dim", "  (24)"], ["dim", "  ─────────────────────────────────────────────────"]])],
-            [8, 35, line([["amber", "▸"], ["fg", " ▾ "], ["blue", "📁 photo"], ["fg", "                                                      1.2 TiB  "], ["dim", "63.3% 1.2 TiB / 1.9 TiB enc recycle"]])],
-            [9, 39, line([["fg", "▸ "], ["blue", "📁 2026"], ["fg", "                                                     1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [10, 39, line([["fg", "▸ "], ["blue", "📁 2025"], ["fg", "                                                     1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [11, 39, line([["fg", "▸ "], ["blue", "📁 2024"], ["fg", "                                                     1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [12, 39, line([["fg", "▸ "], ["blue", "📁 Family"], ["fg", "                                                   1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [13, 39, line([["fg", "▸ "], ["blue", "📁 Travel"], ["fg", "                                                   1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [14, 39, line([["fg", "▸ "], ["blue", "📁 Wedding"], ["fg", "                                                  1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [15, 43, line([["fg", "🖼 front.jpg"], ["fg", "                                                  1010 KiB  "], ["dim", "2026-05-18 17:02     baraniewski"]])],
-            [16, 43, line([["fg", "· DSC02184.RAF"], ["fg", "                                                37 MiB  "], ["dim", "2026-05-17 21:02     baraniewski"]])],
-            [17, 43, line([["fg", "· DSC02185.RAF"], ["fg", "                                                40 MiB  "], ["dim", "2026-05-17 21:02     baraniewski"]])],
-            [19, 35, line([["fg", "▸ "], ["blue", "📁 video"], ["fg", "                                                    5.9 TiB  "], ["dim", "quota -                         recycle"]])],
-            [20, 35, line([["fg", "▾ "], ["blue", "📁 music"], ["fg", "                                                    278 GiB  "], ["dim", "quota -"]])],
-            [21, 39, line([["fg", "▸ "], ["blue", "📁 FLAC"], ["fg", "                                                     1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [22, 39, line([["fg", "▾ "], ["blue", "📁 Lossy"], ["fg", "                                                    1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [23, 43, line([["fg", "▸ "], ["blue", "📁 .cache"], ["fg", "                                                  1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [24, 43, line([["fg", "📝 README.md"], ["fg", "                                                  4.2 KiB  "], ["dim", "2026-05-18 01:02     baraniewski"]])],
-            [26, 35, line([["fg", "▸ "], ["blue", "📁 books"], ["fg", "                                                     17 GiB  "], ["dim", "quota -"]])],
-            [27, 35, line([["fg", "▸ "], ["blue", "📁 homes"], ["fg", "                                                    216 GiB  "], ["dim", "quota -                         recycle hidden"]])],
-            [28, 35, line([["fg", "▾ "], ["blue", "📁 backups"], ["fg", "                                                  913 GiB  "], ["dim", "quota -"]])],
-            [29, 39, line([["fg", "▸ "], ["blue", "📁 hyperbackup"], ["fg", "                                             1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [30, 39, line([["fg", "▸ "], ["blue", "📁 active-backup"], ["fg", "                                           1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [31, 39, line([["fg", "▸ "], ["blue", "📁 offsite-cold"], ["fg", "                                             1.2 GiB  "], ["dim", "2026-05-16 01:02     baraniewski"]])],
-            [32, 35, line([["fg", "▸ "], ["blue", "📁 code"], ["fg", "                                                      12 GiB  "], ["dim", "quota -                         sync"]])],
-            [36, 33, line([["dim", "total 8.4 TiB · 24 rows · 0 sizing"]])],
-            [8, 111, line([["inspect amber", "photo"]])],
-            [10, 111, line([["inspect dim", "/volume1"]])],
-            [12, 111, line([["inspect fg bold", "Family photos"]])],
-            [14, 111, line([["inspect dim", "Quota"]])],
-            [16, 111, line([["inspect yellow", "███████░░░░ 63.3%"]])],
-            [18, 111, line([["inspect dim", "Flags"]])],
-            [20, 111, line([["inspect green", "encrypted recycle"]])]
-          ],
+          inspector: true,
+          actions: "↵ expand/open · ⌫ collapse · S snapshots · i share details · o open · W download · D delete · R re-size",
+          render: renderFiles,
           tour: [
-            ["cmd", "$ synoctl :files"],
-            ["fg", "Shares, File Station, quotas, and usage are one tree."],
+            ["green", "$ synoctl :files"],
+            ["", "Shares, File Station, quotas, and usage are one tree."],
             ["blue", "Directories expand in place; the view is not replaced."],
             ["blue", "DSM DirSize fills exact sizes for visible branches first."],
-            ["dim", "If DSM returns an error, the row says err."]
+            ["muted", "If DSM returns an error, the row says err instead of fake certainty."]
           ]
         },
         {
-          title: "0:synoctl - packages",
+          id: "apps",
+          label: "apps",
+          leftTitle: "0:synoctl - packages",
           active: "Apps",
-          footer: "t mode · 1/2/3 jump · ↵ details · / filter · s start · x stop · R restart · U uninstall",
-          lines: [
-            ...leftWithActive("Apps").map((value, i) => [i, 0, value]),
-            [3, 33, line([["amber", "Installed (25)"], ["fg", "          Available       Services (19)"]])],
-            [5, 33, line([["dim", "────────────────────────────────────────────────────────────────────────────"]])],
-            [8, 35, line([["amber", "Installed packages"], ["dim", "  (25)"], ["amber", "    ─────────────────────────────────────────────────"]])],
-            ...[
-              ["Active Insight", "1.2.0-1214", "Synology Inc.", "running"],
-              ["Audio Station", "7.0.3-5401", "Synology Inc.", "running"],
-              ["Advanced Media Extensions", "1.1.2-0301", "Synology Inc.", "running"],
-              ["Container Manager", "24.0.2-1535", "Synology Inc.", "running"],
-              ["DHCP Server", "1.0.1-0036", "Synology Inc.", "running"],
-              ["Download Station", "3.9.5-4627", "Synology Inc.", "running"],
-              ["File Station", "1.3.1-1382", "Synology Inc.", "running"],
-              ["Git Server", "2.39.1-1017", "Git", "running"],
-              ["Hyper Backup", "3.0.2-2446", "Synology Inc.", "running"],
-              ["Active Backup for Business", "2.6.2-12517", "Synology Inc.", "running"],
-              ["Media Server", "2.0.5-3152", "Synology Inc.", "running"],
-              ["Note Station", "2.8.2-3508", "Synology Inc.", "stop"],
-              ["Node.js v18", "18.18.2-0011", "nodejs.org", "running"],
-              ["OAuth Service", "1.1.2-0071", "Synology Inc.", "running"],
-              ["Plex Media Server", "1.41.5.9626-72180", "Plex Inc", "running"],
-              ["Python3", "3.9.14-0003", "Python Software Foundat...", "running"],
-              ["SMB Service", "4.15.13-0330", "Synology Inc.", "running"],
-              ["Storage Analyzer", "2.1.0-0421", "Synology Inc.", "running"],
-              ["Surveillance Station", "9.2.5-11979", "Synology Inc.", "running"]
-            ].map((p, i) => [10 + i, 35, line([["fg", `${i === 0 ? "▸ " : "  "}${p[0].padEnd(32)}`], ["dim", p[1].padEnd(24)], ["dim", p[2].padEnd(28)], [p[3] === "stop" ? "red" : "green", p[3]]])]),
-            [8, 111, line([["inspect amber", "Active Insight"]])],
-            [11, 111, line([["inspect dim", "ActiveInsight"]])],
-            [14, 111, line([["inspect dim", "Version:"], ["inspect fg bold", "   1.2.0-1214"]])],
-            [16, 111, line([["inspect dim", "Maintainer:"], ["inspect fg bold", " Synology Inc."]])],
-            [18, 111, line([["inspect dim", "Status:"], ["inspect green", "     running"]])],
-            [22, 111, line([["inspect dim", "Description"]])],
-            [24, 113, line([["inspect fg bold", "Cloud monitoring service for"]])],
-            [25, 111, line([["inspect fg bold", "Synology NAS."]])]
-          ],
+          inspector: true,
+          actions: "t mode · 1/2/3 jump · ↵ details · / filter · s start · x stop · R restart · U uninstall",
+          render: renderApps,
           tour: [
-            ["cmd", "$ synoctl :apps"],
-            ["fg", "Installed, available catalog, and services share one page."],
+            ["green", "$ synoctl :apps"],
+            ["", "Installed, available catalog, and services are modes inside one page."],
             ["blue", "The footer only shows actions that work in the current mode."],
             ["blue", "Start, stop, restart, install, uninstall, enable, disable."],
-            ["dim", "Slow DSM catalog calls do not freeze navigation."]
+            ["muted", "Slow DSM catalog calls no longer trap navigation."]
           ]
         },
         {
-          title: "0:synoctl - containers",
+          id: "containers",
+          label: "containers",
+          leftTitle: "0:synoctl - containers",
           active: "Containers",
-          footer: "t mode · 1/2/3 jump · ↵ details · / filter · r refresh",
-          lines: [
-            ...leftWithActive("Containers").map((value, i) => [i, 0, value]),
-            [3, 33, line([["amber", "Containers (6)"], ["fg", "          Images (12)       Networks (3)"]])],
-            [5, 33, line([["dim", "────────────────────────────────────────────────────────────────────────────"]])],
-            [8, 35, line([["amber", "Containers"], ["dim", "  (6)"], ["amber", "    ─────────────────────────────────────────────────────────"]])],
-            ...[
-              ["plex", "linuxserver/plex:latest", "18.0%", "running"],
-              ["jellyfin", "jellyfin/jellyfin:10.9", "6.0%", "running"],
-              ["homepage", "ghcr.io/gethomepage/homepage:v0.9.2", "1.0%", "running"],
-              ["pihole", "pihole/pihole:latest", "0.0%", "stopped"],
-              ["traefik", "traefik:v3.0", "2.0%", "running"],
-              ["uptime-kuma", "louislam/uptime-kuma:1", "1.0%", "running"]
-            ].map((c, i) => [10 + i * 2, 35, line([["fg bold", `${i === 0 ? "▸ " : "  "}${c[0].padEnd(18)}`], ["dim", c[1].padEnd(48)], ["dim", c[2].padStart(8)], ["fg", "     - "], [c[3] === "stopped" ? "red" : "green", c[3]]])]),
-            [7, 111, line([["inspect amber", "Container"]])],
-            [8, 111, line([["inspect amber", "plex"]])],
-            [10, 111, line([["inspect dim", "linuxserver/plex:latest"]])],
-            [12, 111, line([["inspect green", "running"]])],
-            [16, 111, line([["inspect dim", "ID"]])],
-            [18, 111, line([["inspect fg", "a1b2c3d4e5f6"]])],
-            [22, 111, line([["inspect dim", "CPU"], ["inspect fg", "       18.0%"]])],
-            [24, 111, line([["inspect dim", "Memory"], ["inspect fg", "    0 B"]])],
-            [26, 111, line([["inspect dim", "Net up"], ["inspect fg", "    0 B"]])],
-            [28, 111, line([["inspect dim", "Net down"], ["inspect fg", "  0 B"]])]
-          ],
+          inspector: true,
+          actions: "t mode · 1/2/3 jump · ↵ details · / filter · r refresh",
+          render: renderContainers,
           tour: [
-            ["cmd", "$ synoctl :containers"],
-            ["fg", "The same grammar carries through the rest of DSM."],
+            ["green", "$ synoctl :containers"],
+            ["", "The same grammar carries through the rest of DSM."],
             ["blue", "Dense list on the left. Inspector on the right."],
-            ["blue", "Keyboard actions live in the footer, not in a hidden menu."],
-            ["dim", "API Explorer is always there when firmware drifts."]
+            ["blue", "Keyboard actions stay in the footer, not behind web chrome."],
+            ["muted", "API Explorer is one tab away when firmware drifts."]
           ]
         }
       ];
 
-      function renderFrame(frame) {
-        const rows = Array.from({ length: 64 }, () => Array(132).fill(" "));
-        const htmlRows = Array.from({ length: 64 }, () => "");
-        for (const [row, col, html] of frame.lines) {
-          htmlRows[row] = htmlRows[row].padEnd(col, " ") + html;
-        }
-        htmlRows[63] = span("dim", frame.footer);
-        app.innerHTML = htmlRows.join("\n");
-        title.textContent = frame.title;
+      const el = {
+        sidebar: document.getElementById("sidebar"),
+        shell: document.getElementById("view-shell"),
+        main: document.getElementById("view-main"),
+        title: document.getElementById("left-title"),
+        count: document.getElementById("tour-count"),
+        actions: document.getElementById("frame-actions"),
+        tour: document.getElementById("tour-log"),
+        tabs: document.getElementById("tour-tabs")
+      };
+
+      let active = 0;
+      let typeTimer = 0;
+
+      function h(value) {
+        return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
       }
 
-      function renderTour(staged = null) {
-        const source = staged || history;
-        tour.innerHTML = source.map(([cls, value]) => span(cls, value)).join("\n");
-        tour.scrollTop = tour.scrollHeight;
-        buttons.forEach((button) => {
-          button.dataset.active = Number(button.dataset.frame) === active ? "true" : "false";
+      function cls(name, value) {
+        return `<span class="${name}">${h(value)}</span>`;
+      }
+
+      function renderNav(activeLabel) {
+        el.sidebar.innerHTML = sections.map(([title, rows]) => `
+          <div class="section">
+            <div class="section-title">${h(title)}</div>
+            ${rows.map(([icon, label]) => `
+              <div class="nav-row ${label === activeLabel ? "active" : ""}">
+                <span class="marker">▎</span><span class="icon">${h(icon)}</span><span class="label">${h(label)}</span>
+              </div>
+            `).join("")}
+          </div>
+        `).join("");
+      }
+
+      function meter(percent, color = "green") {
+        return `<div class="meter"><span class="fill ${color}" style="width:${percent}%"></span><span class="empty"></span></div>`;
+      }
+
+      function renderDashboard() {
+        return `
+          <div class="dashboard-view">
+            <div class="path"><span>${cls("amber", "overview /")} ${cls("muted", "(dashboard)")}</span><span class="path-line"></span></div>
+
+            <div class="cards">
+              ${metric("CPU", "26%", 26, "green", cls("blue spark", "▆▆▇▇▆▅▅"))}
+              ${metric("Memory", "60%", 60, "yellow", cls("blue spark", "▆▆▅▅▅▅"))}
+              ${metric("Network", "↓ 7.7 MiB/s", 58, "blue", cls("blue spark", "▃▄▅▆▇▆") + cls("blue", "↑ 739 KiB/s"))}
+              ${metric("Disk I/O", "37%", 37, "green", cls("blue spark", "▆▆▅▄▃"))}
+            </div>
+
+            <div class="panel">
+              <div class="subhead">Volumes</div>
+              ${volume("/volume1", 57, "9.1 TiB / 16 TiB", "normal")}
+              ${volume("/volume2", 7.5, "305 GiB / 4.0 TiB", "normal")}
+            </div>
+
+            <div class="panel">
+              <div class="subhead">Disks</div>
+              <div class="disk-grid">
+                ${disk("sda", "WDC WD80EFAX-68LHPN0", "39°C", "normal", "green")}
+                ${disk("sdb", "WDC WD80EFAX-68LHPN0", "41°C", "normal", "yellow")}
+                ${disk("sdc", "Seagate ST4000VN006-3CW104", "36°C", "normal", "green")}
+                ${disk("sdd", "Samsung SSD 870 EVO 1TB", "31°C", "normal", "green")}
+              </div>
+            </div>
+
+            <div class="dash-bottom">
+              <div class="panel">
+                <div class="subhead">Top processes (by CPU)</div>
+                <div class="process-row muted"><span>PID</span><span>COMMAND</span><span>CPU</span><span>MEM</span></div>
+                ${process("11242", "plex_media_server", 62, "403 MiB", "red")}
+                ${process("11242", "ffmpeg-transcoder", 48, "219 MiB", "yellow")}
+                ${process("1182", "synoindexd", 38, "86 MiB", "green")}
+                ${process("11243", "plex_transcoder", 30, "180 MiB", "green")}
+                ${process("2310", "syno-photos-index...", 22, "153 MiB", "green")}
+                ${process("9988", "synoaicore", 18, "403 MiB", "green")}
+                ${process("5421", "containerd-shim-r...", 13, "63 MiB", "green")}
+                ${process("5430", "containerd-shim-r...", 12, "51 MiB", "green")}
+                ${process("11244", "plex_analyzer", 11, "63 MiB", "green")}
+                ${process("982", "smbd", 9, "40 MiB", "green")}
+                ${process("12001", "jellyfin-server", 8, "194 MiB", "green")}
+                ${process("4200", "containerd", 8, "86 MiB", "green")}
+                ${process("2400", "synofotoindexer", 7, "80 MiB", "green")}
+                ${process("8721", "synology-drive-se...", 7, "194 MiB", "green")}
+                ${process("13001", "traefik", 6, "63 MiB", "green")}
+                ${process("4214", "dockerd", 5, "125 MiB", "green")}
+                ${process("14411", "tailscaled", 5, "34 MiB", "green")}
+                ${process("7711", "synoavd", 4, "100 MiB", "green")}
+                ${process("2410", "synofotoanalyzer", 4, "122 MiB", "green")}
+                ${process("5455", "containerd-shim-r...", 3, "18 MiB", "green")}
+                ${process("712", "synobasic", 3, "24 MiB", "green")}
+                ${process("729", "synowebapi", 3, "28 MiB", "green")}
+              </div>
+              <div class="panel">
+                <div class="subhead">Recent activity</div>
+                ${activity("•", "2026-05-19 00:47…", "0 errors detected; checksum matched", "blue")}
+                ${activity("⚠", "2026-05-19 00:30…", "sdc reported 4 reallocated sectors", "yellow")}
+                ${activity("•", "2026-05-19 00:02…", "Service started after auto-update", "blue")}
+                ${activity("•", "2026-05-18 23:32…", "\"Daily homes -> /volume2/backups\" finished", "blue")}
+                ${activity("•", "2026-05-18 23:02…", "Login via DSM web UI from 192.168.1.4", "blue")}
+                ${activity("⚠", "2026-05-18 22:02…", "Tailscale lost connection at 17:02", "yellow")}
+                ${activity("•", "2026-05-18 21:02…", "\"Antivirus weekly scan\" started.", "blue")}
+                ${activity("✗", "2026-05-18 20:02…", "Front Door camera unreachable", "red")}
+                ${activity("•", "2026-05-18 19:02…", "Login via SSH.", "blue")}
+                ${activity("•", "2026-05-18 18:02…", "Updated to 24.0.2-1535.", "blue")}
+                ${activity("⚠", "2026-05-18 16:02…", "SSH allowed from any IP - consider firewall", "yellow")}
+                ${activity("•", "2026-05-18 15:02…", "Snapshot of \"photo\" share created", "blue")}
+                ${activity("•", "2026-05-18 14:02…", "No updates available.", "blue")}
+                ${activity("•", "2026-05-18 12:02…", "\"Monthly cold storage -> external\" started", "blue")}
+                ${activity("✗", "2026-05-18 11:02…", "5 failed login attempts -> IP auto-blocked", "red")}
+                ${activity("•", "2026-05-18 07:02…", "Time synchronised with pool.ntp.org", "blue")}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function metric(title, value, pct, color, detail) {
+        return `<div class="metric"><div class="metric-title">${h(title)}</div><div class="metric-value">${value}</div>${meter(pct, color)}<div class="metric-detail">${detail}</div></div>`;
+      }
+
+      function volume(name, pct, size, status) {
+        return `<div class="volume-row"><span class="bold">${h(name)}</span>${meter(pct, "green")}<span class="bold">${pct}%</span><span class="muted">${h(size)}</span><span class="green">${h(status)}</span></div>`;
+      }
+
+      function disk(id, model, temp, status, color) {
+        return `<div class="disk-row"><span>${h(id)}</span><span class="muted clip">${h(model)}</span><span class="${color}">${h(temp)}</span><span class="green">${h(status)}</span></div>`;
+      }
+
+      function process(pid, command, pct, mem, color) {
+        return `<div class="process-row"><span>${h(pid)}</span><span class="clip">${h(command)}</span>${meter(pct, color)}<span class="amber">${h(mem)}</span></div>`;
+      }
+
+      function activity(icon, time, text, color) {
+        return `<div class="activity-row"><span class="${color}">${h(icon)}</span><span class="muted">${h(time)}</span><span class="clip">${h(text)}</span></div>`;
+      }
+
+      function renderFiles() {
+        return `
+          <div class="path"><span>${cls("amber", "storage /")} ${cls("muted", "(shares, files, usage)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Shared folders, files, usage&nbsp;&nbsp;<span class="muted">(24)</span></div>
+          <div class="tree">
+            ${tree("▾ 📂 photo", "1.2 TiB", "63.3% 1.2 TiB / 1.9 TiB", "enc recycle", 0, true)}
+            ${tree("▸ 📁 2026", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 2025", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 2024", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 Family", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 Travel", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 Wedding", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("🖼 front.jpg", "1010 KiB", "2026-05-18 17:02", "baraniewski", 2)}
+            ${tree("· DSC02184.RAF", "37 MiB", "2026-05-17 21:02", "baraniewski", 2)}
+            ${tree("· DSC02185.RAF", "40 MiB", "2026-05-17 21:02", "baraniewski", 2)}
+            ${tree("▸ 📂 video", "5.9 TiB", "quota -", "recycle", 0)}
+            ${tree("▾ 📂 music", "278 GiB", "quota -", "", 0)}
+            ${tree("▸ 📁 FLAC", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▾ 📁 Lossy", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 .cache", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 2)}
+            ${tree("📝 README.md", "4.2 KiB", "2026-05-18 01:02", "baraniewski", 2)}
+            ${tree("▸ 📂 books", "17 GiB", "quota -", "", 0)}
+            ${tree("▸ 📂 homes", "216 GiB", "quota -", "recycle hidden", 0)}
+            ${tree("▾ 📂 backups", "913 GiB", "quota -", "", 0)}
+            ${tree("▸ 📁 hyperbackup", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 active-backup", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📁 offsite-cold", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
+            ${tree("▸ 📂 code", "12 GiB", "quota -", "sync", 0)}
+          </div>
+          <div class="muted" style="margin-top:1.1em">total 8.4 TiB · 24 rows · 0 sizing</div>
+        `;
+      }
+
+      function tree(name, size, date, owner, indent, selected = false) {
+        return `<div class="tree-row ${selected ? "amber" : ""}"><span class="clip indent-${indent}">${h(name)}</span><span>${h(size)}</span><span class="muted">${h(date)}</span><span class="muted">${h(owner)}</span><span></span></div>`;
+      }
+
+      function filesInspector() {
+        return `
+          <div class="amber">photo</div>
+          <br>
+          <div class="muted">/volume1</div>
+          <br>
+          <div class="bold">Family photos</div>
+          <br>
+          <div class="muted">Quota</div>
+          ${meter(63, "yellow")}
+          <div>1.2 TiB used</div>
+          <br>
+          <div class="muted">Flags</div>
+          <div class="green">encrypted recycle</div>
+        `;
+      }
+
+      function renderApps() {
+        const rows = [
+          ["Active Insight", "1.2.0-1214", "Synology Inc.", "running"],
+          ["Audio Station", "7.0.3-5401", "Synology Inc.", "running"],
+          ["Advanced Media Extensions", "1.1.2-0301", "Synology Inc.", "running"],
+          ["Container Manager", "24.0.2-1535", "Synology Inc.", "running"],
+          ["DHCP Server", "1.0.1-0036", "Synology Inc.", "running"],
+          ["Download Station", "3.9.5-4627", "Synology Inc.", "running"],
+          ["File Station", "1.3.1-1382", "Synology Inc.", "running"],
+          ["Git Server", "2.39.1-1017", "Git", "running"],
+          ["Hyper Backup", "3.0.2-2446", "Synology Inc.", "running"],
+          ["Active Backup for Business", "2.6.2-12517", "Synology Inc.", "running"],
+          ["Media Server", "2.0.5-3152", "Synology Inc.", "running"],
+          ["Note Station", "2.8.2-3508", "Synology Inc.", "stop"],
+          ["Node.js v18", "18.18.2-0011", "nodejs.org", "running"],
+          ["OAuth Service", "1.1.2-0071", "Synology Inc.", "running"],
+          ["Plex Media Server", "1.41.5.9626-72180", "Plex Inc", "running"],
+          ["Python3", "3.9.14-0003", "Python Software Foundat...", "running"],
+          ["SMB Service", "4.15.13-0330", "Synology Inc.", "running"],
+          ["Storage Analyzer", "2.1.0-0421", "Synology Inc.", "running"],
+          ["Surveillance Station", "9.2.5-11979", "Synology Inc.", "running"]
+        ];
+        return `
+          <div class="package-tabs"><span class="amber">▎ Installed (25)</span><span>Available</span><span>Services (19)</span></div>
+          <div class="subhead">Installed packages&nbsp;&nbsp;<span class="muted">(25)</span></div>
+          ${rows.map((r, i) => `<div class="package-row"><span class="clip ${i === 0 ? "amber" : ""}">${i === 0 ? "▸ " : "  "}${h(r[0])}</span><span class="muted">${h(r[1])}</span><span class="muted clip">${h(r[2])}</span><span class="${r[3] === "stop" ? "red" : "green"}">${h(r[3])}</span></div>`).join("")}
+        `;
+      }
+
+      function appsInspector() {
+        return `
+          <div class="amber">Active Insight</div>
+          <br>
+          <div class="muted">ActiveInsight</div>
+          <br>
+          <div><span class="muted">Version:</span> <span class="bold">1.2.0-1214</span></div>
+          <div><span class="muted">Maintainer:</span> <span class="bold">Synology Inc.</span></div>
+          <div><span class="muted">Status:</span> <span class="green">running</span></div>
+          <br>
+          <div class="muted">Description</div>
+          <div class="bold" style="white-space:normal">Cloud monitoring service for Synology NAS.</div>
+        `;
+      }
+
+      function renderContainers() {
+        const rows = [
+          ["plex", "linuxserver/plex:latest", "18.0%", "running"],
+          ["jellyfin", "jellyfin/jellyfin:10.9", "6.0%", "running"],
+          ["homepage", "ghcr.io/gethomepage/homepage:v0.9.2", "1.0%", "running"],
+          ["pihole", "pihole/pihole:latest", "0.0%", "stopped"],
+          ["traefik", "traefik:v3.0", "2.0%", "running"],
+          ["uptime-kuma", "louislam/uptime-kuma:1", "1.0%", "running"]
+        ];
+        return `
+          <div class="container-tabs"><span class="amber">▎ Containers (6)</span><span>Images (12)</span><span>Networks (3)</span></div>
+          <div class="subhead">Containers&nbsp;&nbsp;<span class="muted">(6)</span></div>
+          ${rows.map((r, i) => `<div class="container-row"><span class="clip ${i === 0 ? "amber" : ""}">${i === 0 ? "▸ " : "  "}${h(r[0])}</span><span class="muted clip">${h(r[1])}</span><span>${h(r[2])}</span><span class="${r[3] === "stopped" ? "red" : "green"}">${h(r[3])}</span></div>`).join("")}
+        `;
+      }
+
+      function containersInspector() {
+        return `
+          <div class="amber">Container</div>
+          <div class="amber">plex</div>
+          <br>
+          <div class="muted">linuxserver/plex:latest</div>
+          <div class="green">running</div>
+          <br>
+          <div class="muted">ID</div>
+          <div>a1b2c3d4e5f6</div>
+          <br>
+          <div><span class="muted">CPU</span> 18.0%</div>
+          <div><span class="muted">Memory</span> 0 B</div>
+          <div><span class="muted">Net up</span> 0 B</div>
+          <div><span class="muted">Net down</span> 0 B</div>
+        `;
+      }
+
+      function inspectorFor(frame) {
+        if (frame.id === "files") return filesInspector();
+        if (frame.id === "apps") return appsInspector();
+        if (frame.id === "containers") return containersInspector();
+        return "";
+      }
+
+      function renderTour(lines) {
+        el.tour.innerHTML = lines.map(([color, value]) => `<div class="tour-line ${color}">${h(value)}</div>`).join("");
+      }
+
+      function playTour(frame) {
+        clearTimeout(typeTimer);
+        const visible = [];
+        let li = 0;
+        let ci = 0;
+        function step() {
+          const line = frame.tour[li];
+          if (!line) {
+            return;
+          }
+          const partial = line[1].slice(0, ci);
+          renderTour([...visible, [line[0], partial + (ci < line[1].length ? "█" : "")]]);
+          if (ci < line[1].length) {
+            ci += 2;
+            typeTimer = setTimeout(step, 18);
+            return;
+          }
+          visible.push(line);
+          li++;
+          ci = 0;
+          typeTimer = setTimeout(step, 130);
+        }
+        step();
+      }
+
+      function renderTabs() {
+        el.tabs.innerHTML = frames.map((frame, i) => `<button class="${i === active ? "active" : ""}" data-frame="${i}">[${i + 1}] ${h(frame.label)}</button>`).join("");
+        [...el.tabs.querySelectorAll("button")].forEach((button) => {
+          button.addEventListener("click", () => setFrame(Number(button.dataset.frame)));
         });
-        count.textContent = `${active + 1}/${frames.length}`;
       }
 
-      function play(index, reset = false) {
-        clearTimeout(timer);
+      function setFrame(index) {
         active = index;
-        if (reset) history = [];
-        renderFrame(frames[index]);
-        renderTour();
-        let lineIndex = 0;
-        let col = 0;
-        const lines = frames[index].tour;
-        function tick() {
-          const current = lines[lineIndex];
-          if (!current) {
-            timer = setTimeout(() => play((active + 1) % frames.length), 4200);
-            return;
-          }
-          const partial = current[1].slice(0, col);
-          renderTour([...history, [current[0], partial + (col < current[1].length ? "█" : "")]]);
-          if (col < current[1].length) {
-            col += 2;
-            timer = setTimeout(tick, 15);
-            return;
-          }
-          history.push(current);
-          lineIndex++;
-          col = 0;
-          timer = setTimeout(tick, 110);
+        const frame = frames[index];
+        renderNav(frame.active);
+        el.title.textContent = frame.leftTitle;
+        el.count.textContent = `${index + 1}/${frames.length}`;
+        el.actions.textContent = frame.actions;
+        el.shell.className = `view-shell${frame.inspector ? " with-inspector" : ""}`;
+        el.main.className = `view-main${frame.id === "dashboard" ? " dashboard-main" : ""}`;
+        el.main.innerHTML = frame.render();
+        scaleDashboard();
+        [...el.shell.querySelectorAll(".inspector")].forEach((node) => node.remove());
+        if (frame.inspector) {
+          const panel = document.createElement("aside");
+          panel.className = "inspector";
+          panel.innerHTML = inspectorFor(frame);
+          el.shell.appendChild(panel);
         }
-        tick();
+        renderTabs();
+        playTour(frame);
       }
 
-      buttons.forEach((button) => {
-        button.addEventListener("click", () => play(Number(button.dataset.frame), true));
-      });
+      function scaleDashboard() {
+        const dashboard = el.main.querySelector(".dashboard-view");
+        if (!dashboard) return;
+        const scale = Math.min(
+          el.main.clientWidth / dashboard.offsetWidth,
+          el.main.clientHeight / dashboard.offsetHeight
+        );
+        dashboard.style.transform = `scale(${Math.max(0.1, scale)})`;
+      }
 
       window.addEventListener("keydown", (event) => {
-        if (event.key >= "1" && event.key <= "4") play(Number(event.key) - 1, true);
+        if (event.key >= "1" && event.key <= "4") setFrame(Number(event.key) - 1);
       });
+      window.addEventListener("resize", scaleDashboard);
 
-      play(0, true);
+      setFrame(0);
     </script>
   </body>
 </html>
