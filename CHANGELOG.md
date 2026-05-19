@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.6](https://github.com/janekbaraniewski/synoctl/compare/v0.2.5...v0.2.6) (2026-05-19)
+
+
+### Features
+
+* **tui:** improve storage and FileStation flows ([be8f92b](https://github.com/janekbaraniewski/synoctl/commit/be8f92bf012593058177ba905c77c8e0571699f8))
+
+
+### Bug Fixes
+
+* deploy Pages and repair DSM package installs ([225099f](https://github.com/janekbaraniewski/synoctl/commit/225099f30b43f406fe8fef5543f1de33a55f1888))
+* **docs:** tighten landing page fit and autoplay ([#36](https://github.com/janekbaraniewski/synoctl/issues/36)) ([c019d3f](https://github.com/janekbaraniewski/synoctl/commit/c019d3fb0806c46d7f5030433eb1e01a44f7cb46))
+* **security:** harden GitHub security posture ([5f2e538](https://github.com/janekbaraniewski/synoctl/commit/5f2e538b734938bc9fa75fc1c47d491f925f07e3))
+
+
+### Dependencies
+
+* **deps:** bump github.com/charmbracelet/x/ansi from 0.11.6 to 0.11.7 in the go-minor-and-patch group ([#28](https://github.com/janekbaraniewski/synoctl/issues/28)) ([5351991](https://github.com/janekbaraniewski/synoctl/commit/53519917d72c9b9b30d76ea1547bb30a2a5dda72))
+
 ## [0.2.5](https://github.com/janekbaraniewski/synoctl/compare/v0.2.4...v0.2.5) (2026-05-18)
 
 
