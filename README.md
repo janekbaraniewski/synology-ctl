@@ -1,4 +1,4 @@
-# synoctl
+# <img src="docs/assets/synoctl-mark.svg" alt="" width="28" height="28"> synoctl
 
 Terminal control room for Synology DSM.
 

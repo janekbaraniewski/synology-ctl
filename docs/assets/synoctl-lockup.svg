@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="160" viewBox="0 0 640 160" role="img" aria-labelledby="title desc">
+  <title id="title">synoctl logo</title>
+  <desc id="desc">An amber triangular mark followed by the synoctl wordmark.</desc>
+  <path d="M44 36v88h88L44 36Z" fill="#f0a020"/>
+  <text x="164" y="107" fill="#e6e9ef" font-family="Menlo, Monaco, Consolas, 'Liberation Mono', ui-monospace, monospace" font-size="68" font-weight="700" letter-spacing="0">synoctl</text>
+</svg>

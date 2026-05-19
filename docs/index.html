@@ -7,7 +7,9 @@
     <meta name="theme-color" content="#0d1117">
     <meta name="description" content="synoctl is a keyboard-first terminal control room for Synology DSM.">
     <title>synoctl</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon.png" type="image/png" sizes="256x256">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <style>
       :root {
         --bg: #0d1117;
@@ -142,6 +144,19 @@
         background: var(--bg);
         font-size: 13px;
         white-space: nowrap;
+      }
+
+      .syno-brand {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+        gap: 0.45em;
+      }
+
+      .syno-brand img {
+        display: block;
+        width: 5.95em;
+        height: auto;
       }
 
       .syno-body {
@@ -536,7 +551,7 @@
       <main class="panes">
         <section class="left-pane">
           <div class="syno-top">
-            <div><span class="amber">◣</span> <span class="bold">synoctl</span> <span class="green"> • </span> 127.0.0.1:60989</div>
+            <div class="syno-brand"><img src="assets/synoctl-lockup.png" alt="synoctl"><span class="green"> • </span><span>127.0.0.1:60989</span></div>
             <div class="muted" style="text-align:center">DSM 7.2.2-72806 Update 3</div>
             <div class="muted" style="text-align:right">up 169d 00h&nbsp;&nbsp;01:02</div>
           </div>

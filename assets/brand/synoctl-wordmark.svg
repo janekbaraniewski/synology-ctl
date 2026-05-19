@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="220" viewBox="0 0 860 220" role="img" aria-labelledby="title desc">
+  <title id="title">synoctl wordmark</title>
+  <desc id="desc">The synoctl amber triangle mark followed by the synoctl name in a clean monospace wordmark.</desc>
+  <rect width="860" height="220" rx="32" fill="#0d1117"/>
+  <defs>
+    <linearGradient id="face" x1="70" y1="58" x2="176" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd166"/>
+      <stop offset=".52" stop-color="#f5a623"/>
+      <stop offset="1" stop-color="#d57b09"/>
+    </linearGradient>
+  </defs>
+  <path d="M72 58v104h104L72 58Z" fill="url(#face)"/>
+  <path d="M72 58v104h104" fill="none" stroke="#ffd36a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" opacity=".42"/>
+  <text x="220" y="140" fill="#e6e9ef" font-family="Menlo, Monaco, Consolas, 'Liberation Mono', ui-monospace, monospace" font-size="78" font-weight="700" letter-spacing="0">synoctl</text>
+</svg>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>synoctl brand preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --panel: #111822;
+        --line: #2a3445;
+        --text: #e6e9ef;
+        --muted: #8b94a7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        background: var(--bg);
+        font-family: Menlo, Monaco, Consolas, "Liberation Mono", ui-monospace, monospace;
+      }
+
+      main {
+        width: min(1120px, calc(100vw - 40px));
+        margin: 0 auto;
+        padding: 48px 0;
+      }
+
+      h1 {
+        margin: 0 0 26px;
+        font-size: 22px;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .panel {
+        padding: 22px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .panel.large {
+        grid-column: 1 / -1;
+      }
+
+      .label {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      .mark {
+        width: 180px;
+      }
+
+      .wordmark {
+        width: 430px;
+      }
+
+      @media (max-width: 720px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>synoctl brand preview</h1>
+      <div class="grid">
+        <section class="panel">
+          <p class="label">Mark</p>
+          <img class="mark" src="synoctl-mark.svg" alt="synoctl mark">
+        </section>
+        <section class="panel">
+          <p class="label">Wordmark</p>
+          <img class="wordmark" src="synoctl-wordmark.svg" alt="synoctl wordmark">
+        </section>
+        <section class="panel large">
+          <p class="label">GitHub social preview</p>
+          <img src="github-social-preview.svg" alt="synoctl GitHub social preview">
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
