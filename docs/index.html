@@ -46,8 +46,8 @@
       body {
         color: var(--text);
         font-family: var(--font);
-        font-size: clamp(11px, min(0.66vw, 1.18vh), 15px);
-        font-weight: 700;
+        font-size: 13px;
+        font-weight: 400;
         line-height: 1.18;
         letter-spacing: 0;
       }
@@ -115,6 +115,8 @@
 
       .panes {
         min-height: 0;
+        grid-template-columns: minmax(64em, 68fr) minmax(31em, 32fr);
+        min-height: 0;
       }
 
       .left-pane,
@@ -138,6 +140,7 @@
         padding: 0 0.45em;
         color: var(--muted);
         background: var(--bg);
+        font-size: 13px;
         white-space: nowrap;
       }
 
@@ -153,6 +156,8 @@
         overflow: hidden;
         padding: 0.5em 0.55em 0.3em;
         border-right: 1px solid var(--line);
+        font-size: 13px;
+        line-height: 1.08;
       }
 
       .section {
@@ -163,13 +168,14 @@
         margin-bottom: 0.18em;
         color: var(--amber);
         font-weight: 900;
+        font-size: 0.98em;
         text-transform: uppercase;
       }
 
       .nav-row {
         display: flex;
         align-items: center;
-        height: 1.18em;
+        height: 1.14em;
         color: var(--text);
         white-space: nowrap;
       }
@@ -250,7 +256,7 @@
         display: flex;
         align-items: center;
         min-width: 0;
-        margin-bottom: 0.55em;
+        margin-bottom: 0.35em;
         color: var(--amber);
         white-space: nowrap;
       }
@@ -273,7 +279,7 @@
         min-height: 0;
         overflow: hidden;
         transform-origin: top left;
-        font-size: 28px;
+        font-size: 25px;
         line-height: 1.15;
       }
 
@@ -448,6 +454,7 @@
         padding: 0.25em 0.5em 0.35em;
         color: var(--muted);
         background: var(--bg);
+        font-size: 13px;
         white-space: nowrap;
       }
 
@@ -455,6 +462,8 @@
         display: grid;
         grid-template-rows: minmax(0, 1fr) 5.6em;
         background: var(--tour);
+        font-size: 13px;
+        line-height: 1.08;
       }
 
       .tour-log {
@@ -472,17 +481,18 @@
       .tour-bottom {
         min-width: 0;
         overflow: hidden;
-        padding: 0.65em 1.05em;
+        padding: 0.5em 0.9em;
         color: var(--muted);
         background: var(--bar2);
         border-top: 1px solid var(--line);
+        font-size: 13px;
         white-space: nowrap;
       }
 
       .tour-tabs {
         display: flex;
-        gap: 0.85em;
-        margin-bottom: 1.0em;
+        gap: 0.7em;
+        margin-bottom: 0.8em;
       }
 
       .tour-tabs button.active {
@@ -502,23 +512,13 @@
       .red { color: var(--red); }
       .muted { color: var(--muted); }
       .faint { color: var(--faint); }
-      .bold { font-weight: 900; }
+      .bold { font-weight: 400; }
       .clip {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      @media (max-width: 1180px) {
-        body {
-          overflow: auto;
-        }
-
-        .tmux {
-          min-width: 1180px;
-          min-height: 760px;
-        }
-      }
     </style>
   </head>
   <body>
@@ -538,7 +538,7 @@
           <div class="syno-top">
             <div><span class="amber">◣</span> <span class="bold">synoctl</span> <span class="green"> • </span> 127.0.0.1:60989</div>
             <div class="muted" style="text-align:center">DSM 7.2.2-72806 Update 3</div>
-            <div class="muted" style="text-align:right">up 169d 00h&nbsp;&nbsp;01:03</div>
+            <div class="muted" style="text-align:right">up 169d 00h&nbsp;&nbsp;01:02</div>
           </div>
 
           <div class="syno-body">
@@ -578,12 +578,12 @@
     <script>
       const sections = [
         ["Overview", [["◆", "Dashboard"], ["▤", "Resource Monitor"]]],
-        ["Storage", [["▮", "Storage Health"], ["▦", "Shares & Files"], ["⇆", "iSCSI"]]],
+        ["Storage", [["▮", "Volumes"], ["●", "Disks"], ["▦", "Shares & Files"], ["⊞", "Quotas"], ["⇆", "iSCSI"]]],
         ["Apps", [["▣", "Apps"], ["▦", "Containers"], ["▩", "Virtual Machines"]]],
         ["Backup", [["▰", "Hyper Backup"], ["⬇", "Active Backup"], ["☁", "Cloud Sync"]]],
         ["Services", [["⌘", "Drive"], ["◎", "Cameras"]]],
         ["Security", [["⛨", "Certificates"], ["⚐", "Security"], ["▤", "Firewall"]]],
-        ["System", [["⌂", "Admin"], ["⊞", "Quotas"], ["◷", "Scheduled Tasks"], ["⌬", "DDNS"], ["✉", "Notifications"]]],
+        ["System", [["⌂", "Admin"], ["◷", "Scheduled Tasks"], ["⌬", "DDNS"], ["✉", "Notifications"]]],
         ["Settings", [["↟", "DSM Update"], ["◉", "Time & Region"], ["⏻", "Power & Schedule"], ["⇄", "External Access"]]],
         ["Tools", [["⚙", "API Explorer"]]]
       ];
@@ -672,6 +672,7 @@
 
       let active = 0;
       let typeTimer = 0;
+      let frameTimer = 0;
 
       function h(value) {
         return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -752,6 +753,26 @@
                 ${process("5455", "containerd-shim-r...", 3, "18 MiB", "green")}
                 ${process("712", "synobasic", 3, "24 MiB", "green")}
                 ${process("729", "synowebapi", 3, "28 MiB", "green")}
+                ${process("5466", "containerd-shim-r...", 3, "22 MiB", "green")}
+                ${process("5444", "containerd-shim-r...", 3, "12 MiB", "green")}
+                ${process("711", "synoschedd", 2, "19 MiB", "green")}
+                ${process("6102", "synohyperbackup", 2, "47 MiB", "green")}
+                ${process("719", "synologmgr", 2, "18 MiB", "green")}
+                ${process("2420", "synofotoencoder", 2, "38 MiB", "green")}
+                ${process("622", "synologin", 2, "22 MiB", "green")}
+                ${process("11234", "active-backup-bus", 2, "66 MiB", "green")}
+                ${process("716", "synocgrpd", 2, "11 MiB", "green")}
+                ${process("2430", "synocloudsyncd", 2, "42 MiB", "green")}
+                ${process("725", "synosharing", 1, "12 MiB", "green")}
+                ${process("726", "synosnmpcd", 1, "9.2 MiB", "green")}
+                ${process("727", "synosurffshare", 1, "14 MiB", "green")}
+                ${process("728", "synotifvd", 1, "11 MiB", "green")}
+                ${process("723", "synopkgctl", 1, "12 MiB", "green")}
+                ${process("730", "synowebcgid", 1, "14 MiB", "green")}
+                ${process("983", "nmbd", 1, "18 MiB", "green")}
+                ${process("984", "winbindd", 1, "22 MiB", "green")}
+                ${process("1101", "nfsd", 1, "0 B", "green")}
+                ${process("1102", "rpc.mountd", 1, "4.1 MiB", "green")}
               </div>
               <div class="panel">
                 <div class="subhead">Recent activity</div>
@@ -771,6 +792,16 @@
                 ${activity("•", "2026-05-18 12:02…", "\"Monthly cold storage -> external\" started", "blue")}
                 ${activity("✗", "2026-05-18 11:02…", "5 failed login attempts -> IP auto-blocked", "red")}
                 ${activity("•", "2026-05-18 07:02…", "Time synchronised with pool.ntp.org", "blue")}
+                ${activity("•", "2026-05-18 03:02…", "laptop-jan ran scheduled backup", "blue")}
+                ${activity("⚠", "2026-05-17 23:02…", "Volume 1 used 91% - consider cleanup", "yellow")}
+                ${activity("•", "2026-05-17 19:02…", "Recycle bin auto-purge removed 38 GiB", "blue")}
+                ${activity("•", "2026-05-17 18:02…", "Package database refreshed", "blue")}
+                ${activity("•", "2026-05-17 16:02…", "Cloud Sync completed remote diff", "blue")}
+                ${activity("•", "2026-05-17 14:02…", "SMB session closed", "blue")}
+                ${activity("•", "2026-05-17 12:02…", "Drive indexer finished", "blue")}
+                ${activity("⚠", "2026-05-17 09:02…", "External disk disconnected", "yellow")}
+                ${activity("•", "2026-05-17 07:02…", "Hyper Backup integrity check passed", "blue")}
+                ${activity("•", "2026-05-17 03:02…", "System booted normally", "blue")}
               </div>
             </div>
           </div>
@@ -940,14 +971,18 @@
         el.tour.innerHTML = lines.map(([color, value]) => `<div class="tour-line ${color}">${h(value)}</div>`).join("");
       }
 
-      function playTour(frame) {
+      function playTour(frame, index) {
         clearTimeout(typeTimer);
+        clearTimeout(frameTimer);
         const visible = [];
         let li = 0;
         let ci = 0;
         function step() {
           const line = frame.tour[li];
           if (!line) {
+            frameTimer = setTimeout(() => {
+              if (active === index) setFrame((index + 1) % frames.length);
+            }, 2200);
             return;
           }
           const partial = line[1].slice(0, ci);
@@ -982,7 +1017,7 @@
         el.shell.className = `view-shell${frame.inspector ? " with-inspector" : ""}`;
         el.main.className = `view-main${frame.id === "dashboard" ? " dashboard-main" : ""}`;
         el.main.innerHTML = frame.render();
-        scaleDashboard();
+        scaleApp();
         [...el.shell.querySelectorAll(".inspector")].forEach((node) => node.remove());
         if (frame.inspector) {
           const panel = document.createElement("aside");
@@ -991,23 +1026,28 @@
           el.shell.appendChild(panel);
         }
         renderTabs();
-        playTour(frame);
+        playTour(frame, index);
       }
 
       function scaleDashboard() {
-        const dashboard = el.main.querySelector(".dashboard-view");
-        if (!dashboard) return;
+        scaleApp();
+      }
+
+      function scaleApp() {
+        const pane = document.querySelector(".view-main");
+        const dashboard = document.querySelector(".dashboard-view");
+        if (!pane || !dashboard) return;
         const scale = Math.min(
-          el.main.clientWidth / dashboard.offsetWidth,
-          el.main.clientHeight / dashboard.offsetHeight
-        );
+          pane.clientWidth / dashboard.offsetWidth,
+          pane.clientHeight / dashboard.offsetHeight
+        ) * 0.93;
         dashboard.style.transform = `scale(${Math.max(0.1, scale)})`;
       }
 
       window.addEventListener("keydown", (event) => {
         if (event.key >= "1" && event.key <= "4") setFrame(Number(event.key) - 1);
       });
-      window.addEventListener("resize", scaleDashboard);
+      window.addEventListener("resize", scaleApp);
 
       setFrame(0);
     </script>
