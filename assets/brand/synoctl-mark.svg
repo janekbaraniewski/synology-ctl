@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">synoctl mark</title>
+  <desc id="desc">A minimal amber triangular prism with soft lighting.</desc>
+  <defs>
+    <linearGradient id="face" x1="150" y1="124" x2="390" y2="384" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd166"/>
+      <stop offset=".42" stop-color="#f5a623"/>
+      <stop offset="1" stop-color="#d57b09"/>
+    </linearGradient>
+    <linearGradient id="left-bevel" x1="144" y1="118" x2="179" y2="382" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe19a"/>
+      <stop offset=".55" stop-color="#f6ac36"/>
+      <stop offset="1" stop-color="#9b5f14"/>
+    </linearGradient>
+    <linearGradient id="bottom-bevel" x1="150" y1="365" x2="418" y2="397" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f9b23a"/>
+      <stop offset=".65" stop-color="#c87408"/>
+      <stop offset="1" stop-color="#7d4b13"/>
+    </linearGradient>
+    <radialGradient id="hotspot" cx="34%" cy="26%" r="72%">
+      <stop offset="0" stop-color="#fff4cc" stop-opacity=".55"/>
+      <stop offset=".35" stop-color="#ffd36a" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#8d4e06" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M156 118v268h268L156 118Z" fill="#17100a" opacity=".45" transform="translate(16 16)"/>
+  <g>
+    <path d="M150 116v280h280L150 116Z" fill="url(#face)"/>
+    <path d="M150 116l24 26v226l-24 28V116Z" fill="url(#left-bevel)" opacity=".92"/>
+    <path d="M150 396l24-28h226l30 28H150Z" fill="url(#bottom-bevel)" opacity=".9"/>
+    <path d="M150 116v280h280L150 116Z" fill="url(#hotspot)"/>
+    <path d="M174 142l220 220" fill="none" stroke="#fff0b4" stroke-width="7" stroke-linecap="round" opacity=".3"/>
+    <path d="M150 116v280h280" fill="none" stroke="#ffd36a" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" opacity=".42"/>
+  </g>
+</svg>

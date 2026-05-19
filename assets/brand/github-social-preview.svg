@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">synoctl GitHub social preview</title>
+  <desc id="desc">A minimal amber triangular prism on a dark background.</desc>
+  <defs>
+    <radialGradient id="background" cx="50%" cy="44%" r="68%">
+      <stop offset="0" stop-color="#151b24"/>
+      <stop offset=".56" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#070a0e"/>
+    </radialGradient>
+    <linearGradient id="face" x1="462" y1="138" x2="804" y2="488" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd166"/>
+      <stop offset=".42" stop-color="#f5a623"/>
+      <stop offset="1" stop-color="#d57b09"/>
+    </linearGradient>
+    <linearGradient id="left-bevel" x1="448" y1="126" x2="489" y2="498" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe19a"/>
+      <stop offset=".55" stop-color="#f6ac36"/>
+      <stop offset="1" stop-color="#8f5612"/>
+    </linearGradient>
+    <linearGradient id="bottom-bevel" x1="448" y1="476" x2="828" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f9b23a"/>
+      <stop offset=".66" stop-color="#c87408"/>
+      <stop offset="1" stop-color="#6f4210"/>
+    </linearGradient>
+    <radialGradient id="hotspot" cx="39%" cy="25%" r="68%">
+      <stop offset="0" stop-color="#fff4cc" stop-opacity=".5"/>
+      <stop offset=".34" stop-color="#ffd36a" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#8d4e06" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="floor-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0a020" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#f0a020" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-45%" y="-45%" width="190%" height="190%">
+      <feDropShadow dx="0" dy="34" stdDeviation="26" flood-color="#000000" flood-opacity=".6"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#f0a020" flood-opacity=".22"/>
+    </filter>
+    <filter id="floor-blur" x="-20%" y="-120%" width="140%" height="320%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="640" fill="url(#background)"/>
+  <ellipse cx="640" cy="522" rx="260" ry="34" fill="#000" opacity=".35" filter="url(#floor-blur)"/>
+  <ellipse cx="640" cy="515" rx="210" ry="22" fill="url(#floor-fade)" filter="url(#floor-blur)"/>
+  <path d="M456 128v384h384L456 128Z" fill="#3f2608" opacity=".35" transform="translate(24 24)" filter="url(#shadow)"/>
+  <g filter="url(#shadow)">
+    <path d="M448 122v396h396L448 122Z" fill="url(#face)"/>
+    <path d="M448 122l34 38v316l-34 42V122Z" fill="url(#left-bevel)" opacity=".93"/>
+    <path d="M448 518l34-42h322l40 42H448Z" fill="url(#bottom-bevel)" opacity=".92"/>
+    <path d="M448 122v396h396L448 122Z" fill="url(#hotspot)"/>
+    <path d="M482 160l316 316" fill="none" stroke="#fff0b4" stroke-width="8" stroke-linecap="round" opacity=".28"/>
+    <path d="M448 122v396h396" fill="none" stroke="#ffd36a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" opacity=".44"/>
+  </g>
+</svg>
