@@ -520,8 +520,8 @@ func (v *FirewallView) Render(width, height int) string {
 		v.statusErr == nil && v.profilesErr == nil {
 		return fitOrScroll(emptyStateCard(t, width,
 			"▤  Firewall",
-			"Firewall API isn't advertised by this DSM build.",
-			"Open Control Panel → Security → Firewall in DSM to set up profiles."), height)
+			"Firewall APIs are not advertised by this DSM build.",
+			"synoctl cannot edit rules here; run `synoctl apis -f Firewall`, then press r."), height)
 	}
 
 	profs := v.filterProfiles()

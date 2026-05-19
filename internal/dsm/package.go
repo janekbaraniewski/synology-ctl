@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -104,16 +105,28 @@ func (c *Client) PackageUninstall(ctx context.Context, id string) error {
 // both shapes for the id and fall back to the id when there's no
 // name. Use DisplayName() rather than reading Name directly.
 type ServerPackage struct {
-	ID          string `json:"id"`
-	Package     string `json:"package,omitempty"`
-	Name        string `json:"name,omitempty"`
-	DSMAppName  string `json:"dsm_app_name,omitempty"`
-	Description string `json:"desc,omitempty"`
-	Version     string `json:"version,omitempty"`
-	Maintainer  string `json:"maintainer,omitempty"`
-	Beta        bool   `json:"beta,omitempty"`
-	DownloadURL string `json:"link,omitempty"`
-	Size        int64  `json:"size,omitempty"`
+	ID                   string          `json:"id"`
+	Package              string          `json:"package,omitempty"`
+	Name                 string          `json:"name,omitempty"`
+	DSMAppName           string          `json:"dsm_app_name,omitempty"`
+	Description          string          `json:"desc,omitempty"`
+	Version              string          `json:"version,omitempty"`
+	Maintainer           string          `json:"maintainer,omitempty"`
+	Beta                 bool            `json:"beta,omitempty"`
+	DownloadURL          string          `json:"link,omitempty"`
+	MD5                  string          `json:"md5,omitempty"`
+	Source               string          `json:"source,omitempty"`
+	Type                 int             `json:"type,omitempty"`
+	Start                flexBool        `json:"start,omitempty"`
+	QStart               flexBool        `json:"qstart,omitempty"`
+	Depsers              json.RawMessage `json:"depsers,omitempty"`
+	Deppkgs              json.RawMessage `json:"deppkgs,omitempty"`
+	ConflictPkgs         json.RawMessage `json:"conflictpkgs,omitempty"`
+	BreakPkgs            json.RawMessage `json:"breakpkgs,omitempty"`
+	ReplacePkgs          json.RawMessage `json:"replacepkgs,omitempty"`
+	InstallType          string          `json:"install_type,omitempty"`
+	InstallOnColdStorage flexBool        `json:"install_on_cold_storage,omitempty"`
+	Size                 int64           `json:"size,omitempty"`
 }
 
 // Identifier returns the catalogue-internal id, preferring `id` and
@@ -159,11 +172,11 @@ func (c *Client) PackageServerList(ctx context.Context) ([]ServerPackage, error)
 	params := url.Values{}
 	params.Set("blqinst", "true")
 	params.Set("lang", "enu")
-	// Minimal additional set — the TUI doesn't render thumbnails,
-	// changelogs, dependency graphs, or the dozen marketing fields
-	// the web UI fetches. Asking for less keeps the upstream walk
-	// quick(er).
-	params.Set("additional", `["beta","desc","maintainer","version","size","link"]`)
+	// Keep the list narrow, but include the fields Package Center sends
+	// back into Installation.check / get_queue / install. Without this
+	// metadata some DSM 7 builds reject installs even though the package
+	// is visible in the catalog.
+	params.Set("additional", `["beta","desc","maintainer","version","size","link","md5","source","type","start","qstart","deppkgs","depsers","conflictpkgs","breakpkgs","replacepkgs","install_type","install_on_cold_storage"]`)
 
 	var resp struct {
 		Packages []ServerPackage `json:"packages"`
@@ -207,10 +220,10 @@ func firstNonEmpty(a, b []ServerPackage) []ServerPackage {
 // `/volume1` rather than "auto"). When empty we fall back to
 // `/volume1`, which exists on every supported model.
 //
-// CheckCodesign + CheckDsm let the caller skip Synology's signature
-// and firmware-compat gates — leave both true unless you're
-// installing an unsigned community build, in which case set them to
-// false and accept the risk.
+// CheckCodesign + CheckDsm are retained as caller intent from the old
+// start/status/end flow. Modern DSM's queue-based Package Center flow
+// does not expose a safe bypass knob here; PackageInstall follows the
+// same validation path as the DSM web UI.
 //
 // PollInterval / Timeout control the install-status loop in
 // PackageInstall.
@@ -223,24 +236,20 @@ type InstallOpts struct {
 	Timeout        time.Duration
 }
 
-// PackageInstall orchestrates the multi-step install flow against
-// SYNO.Core.Package.Installation. The DSM install pipeline is:
+// PackageInstall orchestrates the DSM 7 Package Center install flow:
 //
-//  1. `start` — kicks off the download+verify+install and returns a
-//     task id. The call accepts the package id and a handful of
-//     install-time toggles (target volume, signature checks, etc).
-//  2. `status` — polled in a loop until `finished: true`. The
-//     response surfaces stage strings ("downloading",
-//     "installing", "post_install") plus a numeric progress.
-//  3. `end` — releases the task. Skipping this leaves the slot
-//     reserved on some firmware, which makes the next install
-//     return a "busy" error.
+//  1. `check` validates environment/dependencies and returns volume data.
+//  2. `get_queue` expands the selected package into the actual install
+//     queue, including dependencies.
+//  3. `install` starts each queued operation.
+//  4. SYNO.Core.Package.list is polled until the requested package
+//     appears in a non-transient state.
 //
-// The flow is encapsulated here so the TUI just calls
-// PackageInstall(id, opts) — but the steps are individually
-// documented because anyone wiring a chunked-progress callback
-// later will need to reuse `start` + `status` directly.
-func (c *Client) PackageInstall(ctx context.Context, id string, opts InstallOpts) error {
+// Older examples of this API use `start/status/end`, but DSM 7.0.1
+// advertises Package.Installation while returning method 103 for those
+// calls. The queue flow below mirrors Package Center's own JavaScript.
+func (c *Client) PackageInstall(ctx context.Context, pkg ServerPackage, catalog []ServerPackage, opts InstallOpts) error {
+	id := pkg.Identifier()
 	if id == "" {
 		return fmt.Errorf("dsm: package id is required")
 	}
@@ -257,59 +266,281 @@ func (c *Client) PackageInstall(ctx context.Context, id string, opts InstallOpts
 		deadline = 10 * time.Minute
 	}
 
-	// 1. Start the install task. DSM returns {"taskid":"..."}.
-	startParams := url.Values{}
-	startParams.Set("id", id)
-	startParams.Set("volume_path", volume)
-	startParams.Set("check_codesign", strconv.FormatBool(opts.CheckCodesign))
-	startParams.Set("check_dsm", strconv.FormatBool(opts.CheckDsm))
-	if opts.BetaIfNoStable {
-		startParams.Set("blqinst", "true")
-	}
-	var startResp struct {
-		TaskID string `json:"taskid"`
-	}
-	if err := c.Call(ctx, "SYNO.Core.Package.Installation", 1, "start", startParams, &startResp); err != nil {
-		return fmt.Errorf("package install start: %w", err)
-	}
-	if startResp.TaskID == "" {
-		return fmt.Errorf("package install: empty task id from DSM")
+	if checkedVolume, err := c.packageInstallCheck(ctx, pkg, volume); err != nil {
+		return err
+	} else if checkedVolume != "" {
+		volume = checkedVolume
 	}
 
-	// 2. Poll status until finished or the deadline elapses.
-	deadlineCtx, cancel := context.WithTimeout(ctx, deadline)
+	queue, err := c.packageInstallQueue(ctx, pkg)
+	if err != nil {
+		return err
+	}
+	if len(queue) == 0 {
+		queue = []packageInstallQueueItem{{Pkg: id, Beta: pkg.Beta}}
+	}
+
+	for _, item := range queue {
+		if item.Pkg == "" {
+			continue
+		}
+		meta := pkg
+		if item.Pkg != id || item.Beta != pkg.Beta {
+			if found, ok := findServerPackage(catalog, item.Pkg, item.Beta); ok {
+				meta = found
+			} else {
+				meta = ServerPackage{ID: item.Pkg, Package: item.Pkg, Beta: item.Beta}
+			}
+		}
+		installVolume := volume
+		if item.Volume != "" {
+			installVolume = item.Volume
+		}
+		if err := c.packageInstallStart(ctx, meta, installVolume); err != nil {
+			return fmt.Errorf("package install %s: %w", item.Pkg, err)
+		}
+	}
+
+	return c.waitPackageInstalled(ctx, id, deadline, poll)
+}
+
+type packageInstallQueueItem struct {
+	Pkg    string `json:"pkg"`
+	Beta   bool   `json:"beta"`
+	Volume string `json:"volume,omitempty"`
+}
+
+func (c *Client) packageInstallCheck(ctx context.Context, pkg ServerPackage, fallbackVolume string) (string, error) {
+	id := pkg.Identifier()
+	params := url.Values{}
+	params.Set("id", id)
+	params.Set("blupgrade", "false")
+	params.Set("blCheckDep", "false")
+	if pkg.Version != "" {
+		params.Set("ver", pkg.Version)
+	}
+	if pkg.Size > 0 {
+		params.Set("size", strconv.FormatInt(pkg.Size, 10))
+	}
+	if pkg.InstallType != "" {
+		params.Set("install_type", pkg.InstallType)
+	}
+	if pkg.InstallOnColdStorage.Bool() {
+		params.Set("install_on_cold_storage", "true")
+	}
+	setRawJSON(params, "depsers", pkg.Depsers)
+	setRawJSON(params, "deppkgs", pkg.Deppkgs)
+	setRawJSON(params, "conflictpkgs", pkg.ConflictPkgs)
+	setRawJSON(params, "breakpkgs", pkg.BreakPkgs)
+	setRawJSON(params, "replacepkgs", pkg.ReplacePkgs)
+
+	var resp struct {
+		IsOccupied flexBool `json:"is_occupied,omitempty"`
+		VolumeList []struct {
+			MountPoint string `json:"mount_point,omitempty"`
+			Path       string `json:"path,omitempty"`
+			VolumePath string `json:"volume_path,omitempty"`
+		} `json:"volume_list,omitempty"`
+	}
+	if err := c.Call(ctx, "SYNO.Core.Package.Installation", 2, "check", params, &resp); err != nil {
+		// DSM 7.0.x can return generic parameter/version errors here
+		// unless the catalog row includes the exact dependency payload
+		// Package Center cached from its i18n bundle. Keep this step
+		// advisory; get_queue/install still performs the real gate.
+		if e, ok := err.(*Error); ok && (e.Code == 103 || e.Code == 104 || e.Code == 114 || e.Code == 120) {
+			return fallbackVolume, nil
+		}
+		return "", fmt.Errorf("package install check: %w", err)
+	}
+	if resp.IsOccupied.Bool() {
+		return "", fmt.Errorf("package install check: Package Center is busy")
+	}
+	if fallbackVolume != "" {
+		return fallbackVolume, nil
+	}
+	for _, v := range resp.VolumeList {
+		if v.MountPoint != "" {
+			return v.MountPoint, nil
+		}
+		if v.VolumePath != "" {
+			return v.VolumePath, nil
+		}
+		if v.Path != "" {
+			return v.Path, nil
+		}
+	}
+	return fallbackVolume, nil
+}
+
+func (c *Client) packageInstallQueue(ctx context.Context, pkg ServerPackage) ([]packageInstallQueueItem, error) {
+	id := pkg.Identifier()
+	req := []struct {
+		Pkg       string `json:"pkg"`
+		Operation string `json:"operation"`
+		Version   string `json:"version,omitempty"`
+		Beta      bool   `json:"beta"`
+	}{{
+		Pkg:       id,
+		Operation: "install",
+		Version:   pkg.Version,
+		Beta:      pkg.Beta,
+	}}
+	b, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("package install queue: encode request: %w", err)
+	}
+	params := url.Values{}
+	params.Set("pkgs", string(b))
+
+	var resp struct {
+		Queue            []packageInstallQueueItem `json:"queue"`
+		NonExistPkgs     []json.RawMessage         `json:"non_exist_pkgs"`
+		ConflictedPkgs   []json.RawMessage         `json:"conflicted_pkgs"`
+		BrokenPkgs       []json.RawMessage         `json:"broken_pkgs"`
+		PausedPkgs       []json.RawMessage         `json:"paused_pkgs"`
+		CausePausingPkgs []json.RawMessage         `json:"cause_pausing_pkgs"`
+	}
+	if err := c.Call(ctx, "SYNO.Core.Package.Installation", 1, "get_queue", params, &resp); err != nil {
+		return nil, fmt.Errorf("package install queue: %w", err)
+	}
+	if len(resp.NonExistPkgs) > 0 {
+		return nil, fmt.Errorf("package install queue: not found: %s", rawList(resp.NonExistPkgs))
+	}
+	if len(resp.ConflictedPkgs) > 0 {
+		return nil, fmt.Errorf("package install queue: conflicts: %s", rawList(resp.ConflictedPkgs))
+	}
+	if len(resp.BrokenPkgs) > 0 {
+		return nil, fmt.Errorf("package install queue: broken packages: %s", rawList(resp.BrokenPkgs))
+	}
+	if len(resp.PausedPkgs) > 0 || len(resp.CausePausingPkgs) > 0 {
+		return nil, fmt.Errorf("package install queue: paused packages: %s%s", rawList(resp.PausedPkgs), rawList(resp.CausePausingPkgs))
+	}
+	return resp.Queue, nil
+}
+
+func (c *Client) packageInstallStart(ctx context.Context, pkg ServerPackage, volume string) error {
+	id := pkg.Identifier()
+	params := url.Values{}
+	params.Set("name", id)
+	params.Set("blqinst", "true")
+	params.Set("volume_path", volume)
+	params.Set("is_syno", strconv.FormatBool(pkg.isSynologySource()))
+	params.Set("beta", strconv.FormatBool(pkg.Beta))
+	params.Set("installrunpackage", strconv.FormatBool(pkg.Start.Bool() || pkg.QStart.Bool()))
+
+	if !pkg.isSynologySource() && pkg.DownloadURL != "" {
+		params.Set("url", pkg.DownloadURL)
+		params.Set("operation", "install")
+		if pkg.MD5 != "" {
+			params.Set("checksum", pkg.MD5)
+		}
+		if pkg.Size > 0 {
+			params.Set("filesize", strconv.FormatInt(pkg.Size, 10))
+		}
+		if pkg.Type != 0 {
+			params.Set("type", strconv.Itoa(pkg.Type))
+		}
+	}
+
+	var resp struct {
+		Progress float64 `json:"progress,omitempty"`
+		Error    string  `json:"error,omitempty"`
+		Code     int     `json:"code,omitempty"`
+	}
+	if err := c.Call(ctx, "SYNO.Core.Package.Installation", 1, "install", params, &resp); err != nil {
+		return err
+	}
+	if resp.Error != "" {
+		return fmt.Errorf("%s", resp.Error)
+	}
+	if resp.Code != 0 {
+		return fmt.Errorf("DSM returned install code %d", resp.Code)
+	}
+	if resp.Progress < 0 {
+		return fmt.Errorf("DSM rejected install request")
+	}
+	return nil
+}
+
+func (c *Client) waitPackageInstalled(ctx context.Context, id string, timeout, poll time.Duration) error {
+	deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+
+	var lastErr error
 	for {
-		statusParams := url.Values{}
-		statusParams.Set("taskid", startResp.TaskID)
-		var statusResp struct {
-			Finished bool   `json:"finished"`
-			Stage    string `json:"stage,omitempty"`
-			Status   string `json:"status,omitempty"`
-			Error    string `json:"error,omitempty"`
+		pkgs, err := c.Packages(deadlineCtx)
+		if err != nil {
+			lastErr = err
+		} else {
+			for _, p := range pkgs {
+				if p.ID != id {
+					continue
+				}
+				switch strings.ToLower(p.Status) {
+				case "installing", "downloading", "queueing", "upgrading", "repairing", "loading":
+				case "broken":
+					return fmt.Errorf("package install: %s installed but is broken", id)
+				default:
+					return nil
+				}
+			}
 		}
-		if err := c.Call(deadlineCtx, "SYNO.Core.Package.Installation", 1, "status", statusParams, &statusResp); err != nil {
-			return fmt.Errorf("package install status: %w", err)
-		}
-		if statusResp.Error != "" {
-			return fmt.Errorf("package install failed: %s", statusResp.Error)
-		}
-		if statusResp.Finished {
-			break
-		}
+
 		select {
 		case <-deadlineCtx.Done():
-			return fmt.Errorf("package install: timed out after %s (last stage: %q)", deadline, statusResp.Stage)
+			if lastErr != nil {
+				return fmt.Errorf("package install: timed out after %s waiting for %s (last package list error: %v)", timeout, id, lastErr)
+			}
+			return fmt.Errorf("package install: timed out after %s waiting for %s", timeout, id)
 		case <-time.After(poll):
 		}
 	}
+}
 
-	// 3. End the task to release the slot. Best-effort: the install
-	//    itself succeeded by the time we get here.
-	endParams := url.Values{}
-	endParams.Set("taskid", startResp.TaskID)
-	_ = c.Call(ctx, "SYNO.Core.Package.Installation", 1, "end", endParams, nil)
-	return nil
+func (p ServerPackage) isSynologySource() bool {
+	switch strings.ToLower(p.Source) {
+	case "", "syno", "synology":
+		return true
+	default:
+		return false
+	}
+}
+
+func setRawJSON(params url.Values, key string, raw json.RawMessage) {
+	raw = json.RawMessage(strings.TrimSpace(string(raw)))
+	if len(raw) == 0 || string(raw) == "null" {
+		return
+	}
+	params.Set(key, string(raw))
+}
+
+func rawList(items []json.RawMessage) string {
+	if len(items) == 0 {
+		return ""
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		s := strings.TrimSpace(string(item))
+		if unquoted, err := strconv.Unquote(s); err == nil {
+			s = unquoted
+		}
+		out = append(out, s)
+	}
+	return strings.Join(out, ", ")
+}
+
+func findServerPackage(catalog []ServerPackage, id string, beta bool) (ServerPackage, bool) {
+	for _, p := range catalog {
+		if p.Identifier() == id && p.Beta == beta {
+			return p, true
+		}
+	}
+	for _, p := range catalog {
+		if p.Identifier() == id {
+			return p, true
+		}
+	}
+	return ServerPackage{}, false
 }
 
 // PackageControl starts, stops, or restarts a package by id.
