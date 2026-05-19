@@ -72,14 +72,21 @@ jobs:
               return response.data;
             }
 
-            async function hasNonDependabotCommits(pullNumber) {
+            function isBranchUpdateMerge(commit) {
+              const parentCount = commit.parents?.length ?? 0;
+              const message = commit.commit?.message ?? '';
+
+              return parentCount > 1 && /^Merge (branch|remote-tracking branch) /.test(message);
+            }
+
+            async function hasExternalCommits(pullNumber) {
               const commits = await github.paginate(github.rest.pulls.listCommits, {
                 owner,
                 repo,
                 pull_number: pullNumber,
                 per_page: 100,
               });
-              return commits.some((commit) => commit.author?.login !== 'dependabot[bot]');
+              return commits.some((commit) => commit.author?.login !== 'dependabot[bot]' && !isBranchUpdateMerge(commit));
             }
 
             const pulls = await github.paginate(github.rest.pulls.list, {
@@ -99,11 +106,11 @@ jobs:
                 });
                 const pull = response.data;
 
-                const hasExternalCommits = await hasNonDependabotCommits(pull.number);
-                if (pull.mergeable_state === 'dirty' || hasExternalCommits) {
+                const hasManualCommits = await hasExternalCommits(pull.number);
+                if (pull.mergeable_state === 'dirty' || hasManualCommits) {
                   const reason = [
                     pull.mergeable_state === 'dirty' ? 'merge conflicts' : '',
-                    hasExternalCommits ? 'non-Dependabot commits' : '',
+                    hasManualCommits ? 'manual commits' : '',
                   ].filter(Boolean).join(' and ');
                   core.warning(`PR #${pull.number} requires manual attention (${reason}); skipping branch update.`);
                   continue;
