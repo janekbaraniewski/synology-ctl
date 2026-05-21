@@ -18,8 +18,11 @@ func runProgram(prog *tea.Program) (tea.Model, error) {
 	// SIGQUIT/SIGHUP to stop a capture, so route both through normal teardown.
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGQUIT)
 	defer func() {
-		signal.Stop(sigCh)
 		close(done)
+		// Keep late duplicate signals from restoring Go's default stack dump
+		// while command-level cleanup (demo logout/server close) is still
+		// running after the TUI has already left alt-screen mode.
+		signal.Ignore(syscall.SIGHUP, syscall.SIGQUIT)
 	}()
 
 	go func() {
