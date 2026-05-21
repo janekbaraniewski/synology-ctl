@@ -41,6 +41,7 @@
         margin: 0;
         width: 100%;
         height: 100%;
+        min-height: 100%;
         overflow: hidden;
         background: var(--bg);
       }
@@ -73,7 +74,8 @@
         display: grid;
         grid-template-rows: 1.55em 1.55em minmax(0, 1fr) 1.55em;
         width: 100vw;
-        height: 100vh;
+        min-height: 100vh;
+        height: 100svh;
         background: var(--bg);
       }
 
@@ -99,7 +101,7 @@
       .pane-tabs,
       .panes {
         display: grid;
-        grid-template-columns: minmax(64em, 68fr) minmax(31em, 32fr);
+        grid-template-columns: minmax(0, 68fr) minmax(24em, 32fr);
       }
 
       .pane-tab {
@@ -116,8 +118,6 @@
       }
 
       .panes {
-        min-height: 0;
-        grid-template-columns: minmax(64em, 68fr) minmax(31em, 32fr);
         min-height: 0;
       }
 
@@ -538,10 +538,294 @@
         background: rgba(93, 173, 226, 0.1);
         box-shadow: inset 0 0 0 1px rgba(93, 173, 226, 0.35);
       }
+      .tree-row[data-path] {
+        border-radius: 0.12em;
+        cursor: pointer;
+      }
+      .tree-row[data-path]:hover,
+      .tree-row[data-path]:focus {
+        background: rgba(93, 173, 226, 0.1);
+        outline: 1px solid rgba(93, 173, 226, 0.35);
+      }
       .clip {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      @media (max-width: 1180px) {
+        body {
+          font-size: 12px;
+        }
+
+        .pane-tabs,
+        .panes {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .pane-tabs {
+          display: none;
+        }
+
+        .tmux {
+          grid-template-rows: 1.55em minmax(0, 1fr) 1.55em;
+        }
+
+        .panes {
+          grid-template-rows: minmax(30em, 72svh) minmax(14em, auto);
+        }
+
+        .left-pane {
+          border-right: 0;
+          border-bottom: 1px solid var(--line-hi);
+        }
+
+        .tour-pane {
+          min-height: 14em;
+        }
+
+        .tour-bottom {
+          white-space: normal;
+        }
+
+        .view-shell.with-inspector {
+          grid-template-columns: minmax(0, 1fr) 15em;
+        }
+
+        .syno-body {
+          grid-template-columns: 13.6em minmax(0, 1fr);
+        }
+      }
+
+      @media (max-width: 760px) {
+        html,
+        body {
+          height: auto;
+          min-height: 100%;
+          overflow-x: hidden;
+          overflow-y: auto;
+        }
+
+        body {
+          font-size: 11.4px;
+        }
+
+        .tmux {
+          display: grid;
+          grid-template-rows: auto auto auto;
+          width: 100%;
+          min-height: 100svh;
+          height: auto;
+        }
+
+        .session {
+          justify-content: flex-start;
+          gap: 1em;
+          min-height: 2.1em;
+          padding: 0 0.7em;
+        }
+
+        .session > span:last-child,
+        .tmux-status {
+          display: none;
+        }
+
+        .panes {
+          grid-template-rows: 76svh auto;
+        }
+
+        .left-pane {
+          grid-template-rows: auto minmax(0, 1fr) auto;
+        }
+
+        .syno-top {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0.18em;
+          align-items: start;
+          padding: 0.45em 0.65em;
+          font-size: 11.5px;
+          white-space: normal;
+        }
+
+        .syno-top > .muted {
+          text-align: left !important;
+        }
+
+        .syno-brand {
+          gap: 0.35em;
+        }
+
+        .syno-brand img {
+          width: 5.55em;
+        }
+
+        .syno-body {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .sidebar,
+        .inspector {
+          display: none;
+        }
+
+        .view-shell.with-inspector {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .view-main {
+          padding: 0.55em 0.65em;
+          overflow: auto;
+        }
+
+        .syno-actions {
+          display: block;
+          min-height: 3.2em;
+          padding: 0.38em 0.65em 0.45em;
+          font-size: 11.2px;
+          white-space: normal;
+        }
+
+        .syno-actions span[style*="float:right"] {
+          float: none !important;
+          display: block;
+          margin-top: 0.2em;
+        }
+
+        .tour-pane {
+          font-size: 11.5px;
+        }
+
+        .tour-log {
+          min-height: 9em;
+          padding: 0.8em 0.85em;
+        }
+
+        .tour-bottom {
+          padding: 0.65em 0.85em 0.8em;
+        }
+
+        .tour-tabs {
+          gap: 0.85em;
+          row-gap: 0.45em;
+        }
+
+        .dashboard-view {
+          width: 100%;
+          height: auto;
+          transform: none !important;
+          grid-template-rows: none;
+          grid-auto-rows: auto;
+          gap: 0.55em;
+          font-size: 11.5px;
+          line-height: 1.14;
+          overflow: visible;
+        }
+
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.55em;
+        }
+
+        .metric,
+        .panel {
+          padding: 0.48em 0.55em;
+        }
+
+        .disk-grid,
+        .dash-bottom {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .volume-row {
+          grid-template-columns: 5.8em minmax(0, 1fr) 3.7em;
+          column-gap: 0.48em;
+        }
+
+        .volume-row > :nth-child(n+4) {
+          display: none;
+        }
+
+        .disk-row {
+          grid-template-columns: 3.2em minmax(0, 1fr) 4.4em;
+        }
+
+        .disk-row > :nth-child(n+4) {
+          display: none;
+        }
+
+        .process-row {
+          grid-template-columns: 3.6em minmax(0, 1fr) 5.2em;
+        }
+
+        .process-row > :nth-child(4) {
+          display: none;
+        }
+
+        .activity-row {
+          grid-template-columns: 1.2em 8.2em minmax(0, 1fr);
+        }
+
+        .package-tabs,
+        .container-tabs {
+          gap: 1em;
+          overflow: hidden;
+        }
+
+        .package-row,
+        .container-row {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .package-row > :nth-child(2),
+        .package-row > :nth-child(3),
+        .container-row > :nth-child(2),
+        .container-row > :nth-child(3) {
+          display: none;
+        }
+
+        .tree-row {
+          grid-template-columns: minmax(0, 1fr) 6.4em;
+          column-gap: 0.5em;
+        }
+
+        .tree-row > :nth-child(n+3) {
+          display: none;
+        }
+
+        .path,
+        .subhead {
+          margin-bottom: 0.55em;
+        }
+      }
+
+      @media (max-width: 420px) {
+        body {
+          font-size: 10.8px;
+        }
+
+        .session {
+          min-height: 2.25em;
+        }
+
+        .panes {
+          grid-template-rows: 78svh auto;
+        }
+
+        .cards {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .activity-row {
+          grid-template-columns: 1.2em minmax(0, 1fr);
+        }
+
+        .activity-row > :nth-child(2) {
+          display: none;
+        }
+
+        .syno-top > .muted:last-child {
+          display: none;
+        }
       }
 
     </style>
@@ -549,8 +833,8 @@
   <body>
     <div class="tmux">
       <header class="session">
-        <span><span class="bold">jan@macbook</span> ~/Workspace/synoctl <span class="green">*</span> tmux attach -t synoctl-site</span>
-        <span>github.com/janekbaraniewski/synoctl</span>
+        <span><span class="bold">demo@workstation</span> ~/Workspace/synoctl <span class="green">*</span> tmux attach -t synoctl-site</span>
+        <span>github.com/example/synoctl</span>
       </header>
 
       <div class="pane-tabs">
@@ -561,7 +845,7 @@
       <main class="panes">
         <section class="left-pane">
           <div class="syno-top">
-            <div class="syno-brand"><img src="assets/synoctl-lockup.png" alt="synoctl"><span class="green"> • </span><span>127.0.0.1:60989</span></div>
+            <div class="syno-brand"><img src="assets/synoctl-lockup.png" alt="synoctl"><span class="green"> • </span><span id="sim-host">demo-nas.local:5000</span></div>
             <div class="muted" style="text-align:center">DSM 7.2.2-72806 Update 3</div>
             <div class="muted" style="text-align:right">up 169d 00h&nbsp;&nbsp;01:02</div>
           </div>
@@ -613,6 +897,14 @@
         ["Tools", [["⚙", "API Explorer"]]]
       ];
 
+      function randInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      const simHost = `demo-nas-${randInt(24, 86)}.lab:5000`;
+      const simLanHost = `10.24.8.${randInt(24, 86)}:5000`;
+      const simLoginIP = `10.24.8.${randInt(120, 220)}`;
+
       const frames = [
         {
           id: "dashboard",
@@ -625,7 +917,7 @@
           tour: [
             ["green", "$ synoctl"],
             ["muted", "discover: mdns, subnet, tailscale peers"],
-            ["blue", "found: 192.168.1.36:5000  DSM 7.0.1-42218"],
+            ["blue", `found: ${simLanHost}  DSM 7.0.1-42218`],
             ["blue", "auth: keychain profile unlocked"],
             ["muted", "render: dashboard"],
             ["green", "$ synoctl :dashboard"],
@@ -890,7 +1182,39 @@
         "API Explorer": "api"
       };
 
+      const screenDescriptions = {
+        "Dashboard": "High-level NAS status with system load, capacity, disk health, top processes, and recent activity.",
+        "Resource Monitor": "Live resource-style charts for CPU, memory, network, disk I/O, and the busiest processes.",
+        "Volumes": "Storage pool and volume capacity view with health state and usable space.",
+        "Disks": "Physical disk inventory with model, pool membership, randomized serials, temperature, and health.",
+        "Shares & Files": "Interactive File Station tree with expandable folders, file selection, and contextual details.",
+        "Quotas": "Quota-focused storage view showing per-share consumption and configured limits.",
+        "iSCSI": "Targets, LUNs, initiator context, mapping state, and capacity pressure in one scan.",
+        "Apps": "Installed packages, version metadata, maintainer, and service state.",
+        "Containers": "Container runtime overview with images, CPU load, and running/stopped state.",
+        "Virtual Machines": "Virtual machines and host allocation with CPU, memory, and power state.",
+        "Hyper Backup": "Backup job health, target paths, running state, and latest task outcome.",
+        "Active Backup": "Endpoint and VM backup tasks with last-run state and stale backup warnings.",
+        "Cloud Sync": "Cloud synchronization jobs with provider, path mapping, direction, and sync status.",
+        "Drive": "Synology Drive endpoints, sync clients, indexers, and stale-device state.",
+        "Cameras": "Surveillance camera availability, recording state, and unreachable device warnings.",
+        "Certificates": "Certificate inventory with issuer, expiration, renewal warnings, and expired entries.",
+        "Security": "Security posture summary for certificates, account protections, and firewall state.",
+        "Firewall": "Firewall rules showing network scopes, protected services, and allow/deny behavior.",
+        "Admin": "Administrative system snapshot with users, maintenance tasks, DDNS, and notification state.",
+        "Scheduled Tasks": "Task Scheduler jobs with cadence, last result, and enabled/running state.",
+        "DDNS": "External hostname records with provider, example IP addresses, and update health.",
+        "Notifications": "Recent notification delivery and alert stream with severity color coding.",
+        "DSM Update": "DSM update status, current build, and catalog freshness.",
+        "Time & Region": "Time zone, NTP source, language, and drift state.",
+        "Power & Schedule": "Wake-on-LAN, UPS, and recurring power behavior.",
+        "External Access": "Reverse proxy, QuickConnect, router, and certificate-facing access settings.",
+        "API Explorer": "Raw DSM API explorer for inspecting endpoint drift and response health."
+      };
+
       const frameIndexById = new Map(frames.map((frame, index) => [frame.id, index]));
+      const screenLabels = sections.flatMap(([, rows]) => rows.map(([, label]) => label));
+      const screenBySlug = new Map(screenLabels.map((label) => [screenSlug(label), label]));
 
       const el = {
         sidebar: document.getElementById("sidebar"),
@@ -900,15 +1224,18 @@
         count: document.getElementById("tour-count"),
         actions: document.getElementById("frame-actions"),
         tour: document.getElementById("tour-log"),
-        tabs: document.getElementById("tour-tabs")
+        tabs: document.getElementById("tour-tabs"),
+        simHost: document.getElementById("sim-host")
       };
 
       let active = 0;
+      let activeLabel = frames[0].active;
       const history = [
         ["muted", "boot: loading synoctl"],
-        ["blue", "boot: discovered 192.168.1.36:5000"],
+        ["blue", `boot: discovered ${simLanHost}`],
         ["blue", "boot: auth profile unlocked"]
       ];
+      el.simHost.textContent = simHost;
 
       function h(value) {
         return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -918,12 +1245,16 @@
         return `<span class="${name}">${h(value)}</span>`;
       }
 
+      function screenSlug(label) {
+        return String(label).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
+
       function renderNav(activeLabel) {
         el.sidebar.innerHTML = sections.map(([title, rows]) => `
           <div class="section">
             <div class="section-title">${h(title)}</div>
             ${rows.map(([icon, label]) => `
-              <div class="nav-row ${label === activeLabel ? "active" : ""} ${navTargets[label] !== undefined ? "selectable" : ""}" data-target="${navTargets[label] ?? ""}">
+              <div class="nav-row ${label === activeLabel ? "active" : ""} ${navTargets[label] !== undefined ? "selectable" : ""}" data-label="${h(label)}" data-target="${navTargets[label] ?? ""}">
                 <span class="marker">▎</span><span class="icon">${h(icon)}</span><span class="label">${h(label)}</span>
               </div>
             `).join("")}
@@ -934,13 +1265,36 @@
       el.sidebar.addEventListener("click", (event) => {
         const row = event.target.closest(".nav-row[data-target]");
         if (!row) return;
-        const target = frameIndexById.get(row.dataset.target ?? "");
-        if (target === undefined) {
-          pushHistory("muted", `nav: ${row.querySelector(".label")?.textContent ?? "unknown"}`);
-          renderTour(frames[active]);
-          return;
+        setScreen(row.dataset.label ?? row.querySelector(".label")?.textContent ?? "Dashboard", "nav");
+      });
+
+      function activateFileRow(row) {
+        if (activeLabel !== "Shares & Files") return;
+        const path = row.dataset.path;
+        const node = findFileNode(path);
+        if (!node) return;
+        selectedFilePath = path;
+        if (node.children) {
+          if (expandedFiles.has(path)) {
+            expandedFiles.delete(path);
+          } else {
+            expandedFiles.add(path);
+          }
         }
-        setFrame(target, "nav");
+        renderActive("files");
+      }
+
+      el.main.addEventListener("click", (event) => {
+        const row = event.target.closest(".tree-row[data-path]");
+        if (row) activateFileRow(row);
+      });
+
+      el.main.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const row = event.target.closest(".tree-row[data-path]");
+        if (!row) return;
+        event.preventDefault();
+        activateFileRow(row);
       });
 
       function meter(percent, color = "green") {
@@ -948,15 +1302,19 @@
       }
 
       function renderDashboard() {
+        const cpu = randInt(18, 44);
+        const memory = randInt(46, 72);
+        const network = randInt(4, 12);
+        const diskIO = randInt(22, 51);
         return `
           <div class="dashboard-view">
             <div class="path"><span>${cls("amber", "overview /")} ${cls("muted", "(dashboard)")}</span><span class="path-line"></span></div>
 
             <div class="cards">
-              ${metric("CPU", "26%", 26, "green", cls("blue spark", "▆▆▇▇▆▅▅"))}
-              ${metric("Memory", "60%", 60, "yellow", cls("blue spark", "▆▆▅▅▅▅"))}
-              ${metric("Network", "↓ 7.7 MiB/s", 58, "blue", cls("blue spark", "▃▄▅▆▇▆") + cls("blue", "↑ 739 KiB/s"))}
-              ${metric("Disk I/O", "37%", 37, "green", cls("blue spark", "▆▆▅▄▃"))}
+              ${metric("CPU", `${cpu}%`, cpu, "green", cls("blue spark", "▆▆▇▇▆▅▅"))}
+              ${metric("Memory", `${memory}%`, memory, "yellow", cls("blue spark", "▆▆▅▅▅▅"))}
+              ${metric("Network", `↓ ${network}.${randInt(1, 9)} MiB/s`, randInt(42, 68), "blue", cls("blue spark", "▃▄▅▆▇▆") + cls("blue", `↑ ${randInt(320, 980)} KiB/s`))}
+              ${metric("Disk I/O", `${diskIO}%`, diskIO, "green", cls("blue spark", "▆▆▅▄▃"))}
             </div>
 
             <div class="panel">
@@ -1028,7 +1386,7 @@
                 ${activity("⚠", "2026-05-19 00:30…", "sdc reported 4 reallocated sectors", "yellow")}
                 ${activity("•", "2026-05-19 00:02…", "Service started after auto-update", "blue")}
                 ${activity("•", "2026-05-18 23:32…", "\"Daily homes -> /volume2/backups\" finished", "blue")}
-                ${activity("•", "2026-05-18 23:02…", "Login via DSM web UI from 192.168.1.4", "blue")}
+                ${activity("•", "2026-05-18 23:02…", `Login via DSM web UI from ${simLoginIP}`, "blue")}
                 ${activity("⚠", "2026-05-18 22:02…", "Tailscale lost connection at 17:02", "yellow")}
                 ${activity("•", "2026-05-18 21:02…", "\"Antivirus weekly scan\" started.", "blue")}
                 ${activity("✗", "2026-05-18 20:02…", "Front Door camera unreachable", "red")}
@@ -1040,7 +1398,7 @@
                 ${activity("•", "2026-05-18 12:02…", "\"Monthly cold storage -> external\" started", "blue")}
                 ${activity("✗", "2026-05-18 11:02…", "5 failed login attempts -> IP auto-blocked", "red")}
                 ${activity("•", "2026-05-18 07:02…", "Time synchronised with pool.ntp.org", "blue")}
-                ${activity("•", "2026-05-18 03:02…", "laptop-jan ran scheduled backup", "blue")}
+                ${activity("•", "2026-05-18 03:02…", "workstation-a ran scheduled backup", "blue")}
                 ${activity("⚠", "2026-05-17 23:02…", "Volume 1 used 91% - consider cleanup", "yellow")}
                 ${activity("•", "2026-05-17 19:02…", "Recycle bin auto-purge removed 38 GiB", "blue")}
                 ${activity("•", "2026-05-17 18:02…", "Package database refreshed", "blue")}
@@ -1076,57 +1434,114 @@
         return `<div class="activity-row"><span class="${color}">${h(icon)}</span><span class="muted">${h(time)}</span><span class="clip">${h(text)}</span></div>`;
       }
 
+      const fileSystem = [
+        {name: "photo", path: "/photo", size: "1.2 TiB", detail: "63.3% 1.2 TiB / 1.9 TiB", owner: "enc recycle", desc: "Family photos + auto-backup target", quota: 63, children: [
+          {name: "2026", path: "/photo/2026", size: "1.2 GiB", detail: "2026-05-16 01:02", owner: "operator", children: [
+            {name: "front.jpg", path: "/photo/2026/front.jpg", icon: "🖼", size: "1010 KiB", detail: "2026-05-18 17:02", owner: "operator", desc: "Front door export"},
+            {name: "DSC02184.RAF", path: "/photo/2026/DSC02184.RAF", icon: "·", size: "37 MiB", detail: "2026-05-17 21:02", owner: "operator"},
+            {name: "DSC02185.RAF", path: "/photo/2026/DSC02185.RAF", icon: "·", size: "40 MiB", detail: "2026-05-17 21:02", owner: "operator"}
+          ]},
+          {name: "2025", path: "/photo/2025", size: "884 GiB", detail: "2026-01-01 00:12", owner: "operator", children: [
+            {name: "Japan", path: "/photo/2025/Japan", size: "220 GiB", detail: "2025-11-12 20:11", owner: "operator", children: [
+              {name: "tokyo-day-01.jpg", path: "/photo/2025/Japan/tokyo-day-01.jpg", icon: "🖼", size: "3.4 MiB", detail: "2025-11-12 20:11", owner: "operator"}
+            ]},
+            {name: "Family", path: "/photo/2025/Family", size: "128 GiB", detail: "2025-10-02 12:04", owner: "operator", children: []}
+          ]},
+          {name: "Family", path: "/photo/Family", size: "86 GiB", detail: "2026-04-22 10:08", owner: "operator", children: []},
+          {name: "Travel", path: "/photo/Travel", size: "312 GiB", detail: "2026-03-11 09:42", owner: "operator", children: []},
+          {name: "Wedding", path: "/photo/Wedding", size: "140 GiB", detail: "2024-08-21 19:33", owner: "operator", children: []}
+        ]},
+        {name: "video", path: "/video", size: "5.9 TiB", detail: "quota -", owner: "recycle", desc: "Movies + TV", children: [
+          {name: "Movies", path: "/video/Movies", size: "4.2 TiB", detail: "2026-05-01 22:10", owner: "operator", children: []},
+          {name: "Shows", path: "/video/Shows", size: "1.7 TiB", detail: "2026-05-03 12:45", owner: "operator", children: []}
+        ]},
+        {name: "music", path: "/music", size: "278 GiB", detail: "quota -", owner: "", desc: "FLAC + MP3 library", children: [
+          {name: "FLAC", path: "/music/FLAC", size: "214 GiB", detail: "2026-05-16 01:02", owner: "operator", children: []},
+          {name: "Lossy", path: "/music/Lossy", size: "64 GiB", detail: "2026-05-16 01:02", owner: "operator", children: [
+            {name: ".cache", path: "/music/Lossy/.cache", size: "1.2 GiB", detail: "2026-05-16 01:02", owner: "operator", children: []},
+            {name: "README.md", path: "/music/Lossy/README.md", icon: "📝", size: "4.2 KiB", detail: "2026-05-18 01:02", owner: "operator"}
+          ]}
+        ]},
+        {name: "books", path: "/books", size: "17 GiB", detail: "quota -", owner: "", desc: "ePub / PDF / audiobooks", children: []},
+        {name: "homes", path: "/homes", size: "216 GiB", detail: "quota -", owner: "recycle hidden", desc: "Per-user home folders", children: []},
+        {name: "backups", path: "/backups", size: "913 GiB", detail: "quota -", owner: "", desc: "Hyper Backup destination", children: [
+          {name: "hyperbackup", path: "/backups/hyperbackup", size: "612 GiB", detail: "2026-05-16 01:02", owner: "operator", children: []},
+          {name: "active-backup", path: "/backups/active-backup", size: "288 GiB", detail: "2026-05-16 01:02", owner: "operator", children: []},
+          {name: "offsite-cold", path: "/backups/offsite-cold", size: "13 GiB", detail: "2026-05-16 01:02", owner: "operator", children: []}
+        ]},
+        {name: "code", path: "/code", size: "12 GiB", detail: "quota -", owner: "sync", desc: "Synology Drive sync target", children: [
+          {name: "synoctl", path: "/code/synoctl", size: "82 MiB", detail: "2026-05-21 22:41", owner: "operator", children: [
+            {name: "README.md", path: "/code/synoctl/README.md", icon: "📝", size: "12 KiB", detail: "2026-05-21 22:41", owner: "operator"},
+            {name: "internal", path: "/code/synoctl/internal", size: "44 MiB", detail: "2026-05-21 22:41", owner: "operator", children: []}
+          ]}
+        ]}
+      ];
+
+      const expandedFiles = new Set(["/photo", "/photo/2026", "/music", "/music/Lossy", "/backups"]);
+      let selectedFilePath = "/photo";
+
+      function fileRows(nodes = fileSystem, level = 0) {
+        return nodes.flatMap((node) => {
+          const row = [{node, level}];
+          if (node.children && expandedFiles.has(node.path)) {
+            row.push(...fileRows(node.children, level + 1));
+          }
+          return row;
+        });
+      }
+
+      function findFileNode(path, nodes = fileSystem) {
+        for (const node of nodes) {
+          if (node.path === path) return node;
+          if (node.children) {
+            const child = findFileNode(path, node.children);
+            if (child) return child;
+          }
+        }
+        return null;
+      }
+
       function renderFiles() {
+        const rows = fileRows();
         return `
           <div class="path"><span>${cls("amber", "storage /")} ${cls("muted", "(shares, files, usage)")}</span><span class="path-line"></span></div>
-          <div class="subhead">Shared folders, files, usage&nbsp;&nbsp;<span class="muted">(24)</span></div>
+          <div class="subhead">Shared folders, files, usage&nbsp;&nbsp;<span class="muted">(${rows.length})</span></div>
           <div class="tree">
-            ${tree("▾ 📂 photo", "1.2 TiB", "63.3% 1.2 TiB / 1.9 TiB", "enc recycle", 0, true)}
-            ${tree("▸ 📁 2026", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 2025", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 2024", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 Family", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 Travel", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 Wedding", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("🖼 front.jpg", "1010 KiB", "2026-05-18 17:02", "baraniewski", 2)}
-            ${tree("· DSC02184.RAF", "37 MiB", "2026-05-17 21:02", "baraniewski", 2)}
-            ${tree("· DSC02185.RAF", "40 MiB", "2026-05-17 21:02", "baraniewski", 2)}
-            ${tree("▸ 📂 video", "5.9 TiB", "quota -", "recycle", 0)}
-            ${tree("▾ 📂 music", "278 GiB", "quota -", "", 0)}
-            ${tree("▸ 📁 FLAC", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▾ 📁 Lossy", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 .cache", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 2)}
-            ${tree("📝 README.md", "4.2 KiB", "2026-05-18 01:02", "baraniewski", 2)}
-            ${tree("▸ 📂 books", "17 GiB", "quota -", "", 0)}
-            ${tree("▸ 📂 homes", "216 GiB", "quota -", "recycle hidden", 0)}
-            ${tree("▾ 📂 backups", "913 GiB", "quota -", "", 0)}
-            ${tree("▸ 📁 hyperbackup", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 active-backup", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📁 offsite-cold", "1.2 GiB", "2026-05-16 01:02", "baraniewski", 1)}
-            ${tree("▸ 📂 code", "12 GiB", "quota -", "sync", 0)}
+            ${rows.map(({node, level}) => fileTreeRow(node, level)).join("")}
           </div>
-          <div class="muted" style="margin-top:1.1em">total 8.4 TiB · 24 rows · 0 sizing</div>
+          <div class="muted" style="margin-top:1.1em">click folders to expand · click files to inspect · ${rows.length} visible rows</div>
         `;
       }
 
-      function tree(name, size, date, owner, indent, selected = false) {
-        return `<div class="tree-row ${selected ? "amber" : ""}"><span class="clip indent-${indent}">${h(name)}</span><span>${h(size)}</span><span class="muted">${h(date)}</span><span class="muted">${h(owner)}</span><span></span></div>`;
+      function fileTreeRow(node, level) {
+        const isDir = Boolean(node.children);
+        const marker = isDir ? (expandedFiles.has(node.path) ? "▾ 📂" : "▸ 📁") : (node.icon ?? "·");
+        return tree(`${marker} ${node.name}`, node.size, node.detail, node.owner, level, selectedFilePath === node.path, node.path, isDir);
+      }
+
+      function tree(name, size, date, owner, indent, selected = false, path = "", isDir = false) {
+        const attrs = path ? ` data-path="${h(path)}" data-dir="${isDir ? "true" : "false"}" tabindex="0" role="button"` : "";
+        return `<div class="tree-row ${selected ? "amber" : ""}"${attrs}><span class="clip indent-${indent}">${h(name)}</span><span>${h(size)}</span><span class="muted">${h(date)}</span><span class="muted">${h(owner)}</span><span></span></div>`;
       }
 
       function filesInspector() {
+        const node = findFileNode(selectedFilePath) ?? fileSystem[0];
+        const isDir = Boolean(node.children);
+        const title = `${isDir ? "folder" : "file"} · ${node.name}`;
         return `
-          <div class="amber">photo</div>
+          <div class="amber">${h(title)}</div>
           <br>
-          <div class="muted">/volume1</div>
+          <div class="muted">${h(node.path)}</div>
           <br>
-          <div class="bold">Family photos</div>
+          <div class="bold" style="white-space:normal">${h(node.desc ?? (isDir ? "DSM File Station folder" : "File Station item"))}</div>
           <br>
-          <div class="muted">Quota</div>
-          ${meter(63, "yellow")}
-          <div>1.2 TiB used</div>
+          <div><span class="muted">Size:</span> <span class="bold">${h(node.size)}</span></div>
+          <div><span class="muted">Modified:</span> <span class="bold">${h(node.detail)}</span></div>
+          <div><span class="muted">Owner:</span> <span class="bold">${h(node.owner || "operator")}</span></div>
+          ${node.quota ? `<br><div class="muted">Quota</div>${meter(node.quota, "yellow")}<div>${h(node.detail)}</div>` : ""}
           <br>
-          <div class="muted">Flags</div>
-          <div class="green">encrypted recycle</div>
+          <div class="muted">Action</div>
+          <div class="green">${isDir ? "click to expand/collapse" : "click selected file"}</div>
         `;
       }
 
@@ -1254,7 +1669,7 @@
       function renderDrive() {
         const rows = [
           ["desktop", "synology-drive-client", "synced", "green"],
-          ["laptop-jan", "sync paused 02:13", "stale", "yellow"],
+          ["workstation-a", "sync paused 02:13", "stale", "yellow"],
           ["photos", "indexer running", "ok", "green"]
         ];
         return `
@@ -1306,7 +1721,7 @@
           <div class="tree">
             ${tree("▾ admin", "2 users", "root locked", "normal", 0, true)}
             ${tree("▸ scheduled tasks", "8", "3 active", "normal", 0)}
-            ${tree("▸ DDNS", "synoctl.baraniewski.com", "ok", "normal", 0)}
+            ${tree("▸ DDNS", "nas-demo.example.net", "ok", "normal", 0)}
             ${tree("▸ notifications", "mail + push", "enabled", "normal", 0)}
           </div>
         `;
@@ -1337,6 +1752,144 @@
         `;
       }
 
+      function renderResourceMonitor() {
+        const cpu = randInt(20, 48);
+        const memory = randInt(44, 74);
+        const network = randInt(41, 73);
+        const disk = randInt(18, 56);
+        return `
+          <div class="path"><span>${cls("amber", "overview /")} ${cls("muted", "(resource monitor)")}</span><span class="path-line"></span></div>
+          <div class="cards">
+            ${metric("CPU", `${cpu}%`, cpu, "green", cls("blue spark", "▁▃▅▇▆▅▃▂"))}
+            ${metric("Memory", `${memory}%`, memory, "yellow", cls("blue spark", "▅▅▅▆▆▅▅"))}
+            ${metric("Network", `↓ ${randInt(4, 11)}.${randInt(1, 9)} MiB/s`, network, "blue", cls("blue spark", "▂▃▄▆▇▆▄"))}
+            ${metric("Disk I/O", `${disk}%`, disk, "green", cls("blue spark", "▃▅▆▅▄▃▂"))}
+          </div>
+          <div class="panel" style="margin-top:0.7em">
+            <div class="subhead">Top processes</div>
+            ${process("11242", "plex_media_server", 62, "403 MiB", "red")}
+            ${process("11242", "ffmpeg-transcoder", 48, "219 MiB", "yellow")}
+            ${process("1182", "synoindexd", 38, "86 MiB", "green")}
+            ${process("2310", "syno-photos-indexer", 22, "153 MiB", "green")}
+            ${process("982", "smbd", 9, "40 MiB", "green")}
+          </div>
+        `;
+      }
+
+      function renderDisks() {
+        return `
+          <div class="path"><span>${cls("amber", "storage /")} ${cls("muted", "(disks)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Disks&nbsp;&nbsp;<span class="muted">(4)</span></div>
+          <div class="disk-grid">
+            ${disk("sda", "WDC WD80EFAX-68LHPN0 · Pool 1 · serial SN-8F42A1", "39°C", "normal", "green")}
+            ${disk("sdb", "WDC WD80EFAX-68LHPN0 · Pool 1 · serial SN-8F42B2", "41°C", "normal", "yellow")}
+            ${disk("sdc", "Seagate ST4000VN006-3CW104 · Pool 1 · serial SN-7C19C3", "36°C", "warn", "yellow")}
+            ${disk("sdd", "Samsung SSD 870 EVO 1TB · Pool 2 · serial SN-4D88D4", "31°C", "normal", "green")}
+          </div>
+        `;
+      }
+
+      function renderActiveBackup() {
+        return `
+          <div class="path"><span>${cls("amber", "backup /")} ${cls("muted", "(active backup)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Active Backup tasks</div>
+          <div class="package-row"><span class="clip amber">▸ workstation-a</span><span class="muted">pc</span><span class="muted">last: 2026-05-18 03:02</span><span class="green">ok</span></div>
+          <div class="package-row"><span class="clip">  workstation-b</span><span class="muted">pc</span><span class="muted">last: 2026-05-17 21:12</span><span class="green">ok</span></div>
+          <div class="package-row"><span class="clip">  ubuntu-vm</span><span class="muted">vmm</span><span class="muted">last: 2026-05-16 02:41</span><span class="yellow">stale</span></div>
+        `;
+      }
+
+      function renderCloudSync() {
+        return `
+          <div class="path"><span>${cls("amber", "backup /")} ${cls("muted", "(cloud sync)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Cloud Sync</div>
+          <div class="container-row"><span class="clip amber">▸ dropbox-photo</span><span class="muted clip">/photo -> Dropbox</span><span>2-way</span><span class="green">synced</span></div>
+          <div class="container-row"><span class="clip">  drive-docs</span><span class="muted clip">/homes/docs -> Drive</span><span>upload</span><span class="green">synced</span></div>
+          <div class="container-row"><span class="clip">  offsite-cold</span><span class="muted clip">/backups -> S3</span><span>upload</span><span class="yellow">running</span></div>
+        `;
+      }
+
+      function renderCertificates() {
+        return `
+          <div class="path"><span>${cls("amber", "security /")} ${cls("muted", "(certificates)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Certificates</div>
+          <div class="package-row"><span class="clip amber">▸ nas-demo.example.net</span><span class="muted">Let's Encrypt</span><span class="muted">expires in 42d</span><span class="green">valid</span></div>
+          <div class="package-row"><span class="clip">  *.lab.local</span><span class="muted">imported</span><span class="muted">expires in 8d</span><span class="yellow">renew</span></div>
+          <div class="package-row"><span class="clip">  old-nas.local</span><span class="muted">self-signed</span><span class="muted">expired</span><span class="red">expired</span></div>
+        `;
+      }
+
+      function renderFirewall() {
+        return `
+          <div class="path"><span>${cls("amber", "security /")} ${cls("muted", "(firewall)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Firewall rules</div>
+          <div class="package-row"><span class="clip amber">▸ allow LAN admin</span><span class="muted">10.24.8.0/24</span><span class="muted">DSM, SSH</span><span class="green">allow</span></div>
+          <div class="package-row"><span class="clip">  allow VPN</span><span class="muted">100.96.0.0/11</span><span class="muted">all apps</span><span class="green">allow</span></div>
+          <div class="package-row"><span class="clip">  deny WAN admin</span><span class="muted">0.0.0.0/0</span><span class="muted">DSM, SSH</span><span class="red">deny</span></div>
+        `;
+      }
+
+      function renderScheduledTasks() {
+        return `
+          <div class="path"><span>${cls("amber", "system /")} ${cls("muted", "(scheduled tasks)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Scheduled tasks</div>
+          <div class="package-row"><span class="clip amber">▸ Daily homes -> /volume2/backups</span><span class="muted">02:30</span><span class="muted">last: success</span><span class="green">enabled</span></div>
+          <div class="package-row"><span class="clip">  Antivirus weekly scan</span><span class="muted">Sun 21:00</span><span class="muted">running</span><span class="yellow">active</span></div>
+          <div class="package-row"><span class="clip">  Recycle bin purge</span><span class="muted">daily</span><span class="muted">removed 38 GiB</span><span class="green">enabled</span></div>
+        `;
+      }
+
+      function renderDDNS() {
+        return `
+          <div class="path"><span>${cls("amber", "system /")} ${cls("muted", "(ddns)")}</span><span class="path-line"></span></div>
+          <div class="subhead">DDNS records</div>
+          <div class="container-row"><span class="clip amber">▸ nas-demo.example.net</span><span class="muted clip">Cloudflare</span><span>192.0.2.44</span><span class="green">normal</span></div>
+          <div class="container-row"><span class="clip">  lab-nas.example.net</span><span class="muted clip">Synology</span><span>192.0.2.44</span><span class="green">normal</span></div>
+        `;
+      }
+
+      function renderNotifications() {
+        return `
+          <div class="path"><span>${cls("amber", "system /")} ${cls("muted", "(notifications)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Recent notifications</div>
+          ${activity("⚠", "2026-05-19 00:30", "sdc reported 4 reallocated sectors", "yellow")}
+          ${activity("•", "2026-05-18 23:32", "Daily homes backup finished", "blue")}
+          ${activity("✗", "2026-05-18 20:02", "Front Door camera unreachable", "red")}
+          ${activity("•", "2026-05-18 07:02", "Time synchronised with pool.ntp.org", "blue")}
+        `;
+      }
+
+      function renderTimeRegion() {
+        return `
+          <div class="path"><span>${cls("amber", "settings /")} ${cls("muted", "(time & region)")}</span><span class="path-line"></span></div>
+          <div class="panel">
+            <div class="subhead">Time & Region</div>
+            <div><span class="muted">Time zone:</span> Europe/Warsaw</div>
+            <div><span class="muted">NTP:</span> pool.ntp.org</div>
+            <div><span class="muted">Drift:</span> <span class="green">0.04s</span></div>
+          </div>
+        `;
+      }
+
+      function renderPowerSchedule() {
+        return `
+          <div class="path"><span>${cls("amber", "settings /")} ${cls("muted", "(power & schedule)")}</span><span class="path-line"></span></div>
+          <div class="subhead">Power schedule</div>
+          <div class="package-row"><span class="clip amber">▸ Wake on LAN</span><span class="muted">LAN 1</span><span class="muted">magic packet</span><span class="green">enabled</span></div>
+          <div class="package-row"><span class="clip">  UPS safe shutdown</span><span class="muted">USB</span><span class="muted">5 min battery</span><span class="green">enabled</span></div>
+        `;
+      }
+
+      function renderExternalAccess() {
+        return `
+          <div class="path"><span>${cls("amber", "settings /")} ${cls("muted", "(external access)")}</span><span class="path-line"></span></div>
+          <div class="subhead">External Access</div>
+          <div class="container-row"><span class="clip amber">▸ HTTPS reverse proxy</span><span class="muted clip">443 -> DSM</span><span>certificate</span><span class="green">ok</span></div>
+          <div class="container-row"><span class="clip">  QuickConnect</span><span class="muted clip">disabled</span><span>policy</span><span class="muted">off</span></div>
+          <div class="container-row"><span class="clip">  Router config</span><span class="muted clip">manual</span><span>UPnP</span><span class="yellow">review</span></div>
+        `;
+      }
+
       function containersInspector() {
         return `
           <div class="amber">Container</div>
@@ -1355,11 +1908,71 @@
         `;
       }
 
-      function inspectorFor(frame) {
-        if (frame.id === "files") return filesInspector();
-        if (frame.id === "apps") return appsInspector();
-        if (frame.id === "containers") return containersInspector();
-        return "";
+      function renderForLabel(label, frame) {
+        switch (label) {
+          case "Resource Monitor": return renderResourceMonitor();
+          case "Disks": return renderDisks();
+          case "Quotas": return renderQuotas();
+          case "iSCSI": return renderIscsi();
+          case "Active Backup": return renderActiveBackup();
+          case "Cloud Sync": return renderCloudSync();
+          case "Certificates": return renderCertificates();
+          case "Firewall": return renderFirewall();
+          case "Scheduled Tasks": return renderScheduledTasks();
+          case "DDNS": return renderDDNS();
+          case "Notifications": return renderNotifications();
+          case "Time & Region": return renderTimeRegion();
+          case "Power & Schedule": return renderPowerSchedule();
+          case "External Access": return renderExternalAccess();
+          default: return frame.render();
+        }
+      }
+
+      function titleForLabel(label) {
+        return `0:synoctl - ${label.toLowerCase()}`;
+      }
+
+      function actionsForLabel(label, frame) {
+        const actions = {
+          "Dashboard": "tab view · } sect · ↵ details · / filter · r refresh",
+          "Resource Monitor": "r refresh · / filter · tab view",
+          "Disks": "↵ details · / filter · r refresh",
+          "Active Backup": "↵ details · / filter · r refresh",
+          "Cloud Sync": "↵ details · / filter · r refresh",
+          "Certificates": "↵ details · / filter · r refresh",
+          "Firewall": "↵ details · / filter · r refresh",
+          "Scheduled Tasks": "↵ details · / filter · X run · e enable · d disable",
+          "DDNS": "↵ details · / filter · r refresh",
+          "Notifications": "↵ details · / filter · r refresh",
+          "Time & Region": "r refresh",
+          "Power & Schedule": "r refresh",
+          "External Access": "↵ details · / filter · r refresh"
+        };
+        return actions[label] ?? frame.actions;
+      }
+
+      function hasInspectorForLabel(label, frame) {
+        return frame.inspector && label !== "Resource Monitor";
+      }
+
+      function inspectorFor(label, frame) {
+        if (label === "Shares & Files") return filesInspector();
+        if (label === "Apps") return appsInspector();
+        if (label === "Containers") return containersInspector();
+        const title = label === "Disks" ? "sda" : label;
+        const parent = frame.id === "storage" ? "storage" : frame.id;
+        const description = screenDescriptions[label] ?? "Simulated DSM screen.";
+        return `
+          <div class="amber">${h(title)}</div>
+          <br>
+          <div class="muted">${h(parent)}</div>
+          <br>
+          <div><span class="muted">State:</span> <span class="green">normal</span></div>
+          <div><span class="muted">Rows:</span> <span class="bold">simulated</span></div>
+          <br>
+          <div class="muted">Context</div>
+          <div class="bold" style="white-space:normal">${h(description)}</div>
+        `;
       }
 
       function pushHistory(color, value) {
@@ -1368,7 +1981,15 @@
       }
 
       function renderTour(frame) {
-        const lines = [...frame.tour, ["muted", ""], ["muted", "recent"], ...history];
+        const lines = [
+          ["amber", activeLabel],
+          ["", screenDescriptions[activeLabel] ?? "Simulated DSM screen."],
+          ["muted", ""],
+          ...frame.tour,
+          ["muted", ""],
+          ["muted", "recent"],
+          ...history
+        ];
         el.tour.innerHTML = lines
           .filter(([, value]) => value !== "")
           .map(([color, value]) => `<div class="tour-line ${color}">${h(value)}</div>`)
@@ -1384,22 +2005,37 @@
 
       function setFrame(index, reason = "") {
         active = index;
-        const frame = frames[index];
-        if (reason) pushHistory("blue", `${reason}: ${frame.id}`);
-        if (location.hash !== `#${frame.id}`) location.hash = frame.id;
-        renderNav(frame.active);
-        el.title.textContent = frame.leftTitle;
-        el.count.textContent = `${index + 1}/${frames.length}`;
-        el.actions.textContent = frame.actions;
-        el.shell.className = `view-shell${frame.inspector ? " with-inspector" : ""}`;
-        el.main.className = `view-main${frame.id === "dashboard" ? " dashboard-main" : ""}`;
-        el.main.innerHTML = frame.render();
+        activeLabel = frames[index].active;
+        renderActive(reason);
+      }
+
+      function setScreen(label, reason = "") {
+        const target = frameIndexById.get(navTargets[label] ?? "");
+        if (target === undefined) return;
+        active = target;
+        activeLabel = label;
+        renderActive(reason);
+      }
+
+      function renderActive(reason = "") {
+        const frame = frames[active];
+        if (reason) pushHistory("blue", `${reason}: ${screenSlug(activeLabel)}`);
+        const nextHash = `#${screenSlug(activeLabel)}`;
+        if (location.hash !== nextHash) location.hash = nextHash;
+        renderNav(activeLabel);
+        el.title.textContent = titleForLabel(activeLabel);
+        el.count.textContent = `${active + 1}/${frames.length}`;
+        el.actions.textContent = actionsForLabel(activeLabel, frame);
+        const withInspector = hasInspectorForLabel(activeLabel, frame);
+        el.shell.className = `view-shell${withInspector ? " with-inspector" : ""}`;
+        el.main.className = `view-main${frame.id === "dashboard" && activeLabel === "Dashboard" ? " dashboard-main" : ""}`;
+        el.main.innerHTML = renderForLabel(activeLabel, frame);
         scaleApp();
         [...el.shell.querySelectorAll(".inspector")].forEach((node) => node.remove());
-        if (frame.inspector) {
+        if (withInspector) {
           const panel = document.createElement("aside");
           panel.className = "inspector";
-          panel.innerHTML = inspectorFor(frame);
+          panel.innerHTML = inspectorFor(activeLabel, frame);
           el.shell.appendChild(panel);
         }
         renderTabs();
@@ -1422,8 +2058,13 @@
       }
 
       window.addEventListener("keydown", (event) => {
-        if (event.key >= "1" && event.key <= "4") {
-          setFrame(Number(event.key) - 1, "tab");
+        if (event.key >= "1" && event.key <= "9") {
+          const index = Number(event.key) - 1;
+          if (index < frames.length) setFrame(index, "tab");
+          return;
+        }
+        if (event.key === "0" && frames.length >= 10) {
+          setFrame(9, "tab");
           return;
         }
         if (event.key === "Tab") {
@@ -1447,13 +2088,24 @@
       window.addEventListener("resize", scaleApp);
       window.addEventListener("hashchange", () => {
         const id = location.hash.replace(/^#/, "");
-        if (!frameIndexById.has(id)) return;
-        const index = frameIndexById.get(id);
-        if (index !== active) setFrame(index, "hash");
+        if (screenBySlug.has(id)) {
+          const label = screenBySlug.get(id);
+          if (label !== activeLabel) setScreen(label, "hash");
+          return;
+        }
+        if (frameIndexById.has(id)) {
+          const index = frameIndexById.get(id);
+          if (index !== active) setFrame(index, "hash");
+        }
       });
 
-      const initialFrame = frameIndexById.get(location.hash.replace(/^#/, "")) ?? 0;
-      setFrame(initialFrame);
+      const initialHash = location.hash.replace(/^#/, "");
+      if (screenBySlug.has(initialHash)) {
+        setScreen(screenBySlug.get(initialHash));
+      } else {
+        const initialFrame = frameIndexById.get(initialHash) ?? 0;
+        setFrame(initialFrame);
+      }
       </script>
   </body>
 </html>
