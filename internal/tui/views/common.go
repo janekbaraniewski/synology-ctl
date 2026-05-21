@@ -211,7 +211,9 @@ func fitOrScroll(s string, n int) string {
 
 func selectedLine(lines []string) int {
 	for i, line := range lines {
-		clean := strings.TrimLeft(ansiEscapeRE.ReplaceAllString(line, ""), " ")
+		clean := ansiEscapeRE.ReplaceAllString(line, "")
+		// Only a caret in column 0 is the list selection; indented
+		// tree expanders use the same glyph.
 		if strings.HasPrefix(clean, "▸") {
 			return i
 		}
