@@ -93,7 +93,7 @@ func startTUI(parentCtx context.Context) error {
 	app := tui.NewApp(client, theme, logger, appSections(vctx))
 
 	prog := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
-	_, err = prog.Run()
+	_, err = runProgram(prog)
 	return err
 }
 
