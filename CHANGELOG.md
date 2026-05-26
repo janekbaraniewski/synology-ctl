@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/janekbaraniewski/synoctl/compare/v0.2.9...v0.2.10) (2026-05-26)
+
+
+### Bug Fixes
+
+* harden TUI quit signal cleanup ([#49](https://github.com/janekbaraniewski/synoctl/issues/49)) ([282dca8](https://github.com/janekbaraniewski/synoctl/commit/282dca8a957d24a661522b1045c8db8fa74f7e04))
+
 ## [0.2.9](https://github.com/janekbaraniewski/synoctl/compare/v0.2.8...v0.2.9) (2026-05-21)
 
 
